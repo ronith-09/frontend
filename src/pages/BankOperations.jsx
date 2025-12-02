@@ -645,16 +645,49 @@ const BankDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [participants, currencies] = await Promise.all([
+        const [
+          participants, 
+          currencies, 
+          pendingTokenReqs,
+          pendingMintReqs,
+          pendingCustomerRegs,
+          pendingCustomerMints,
+          tokenTransferHistory,
+          participantTransferHistory
+        ] = await Promise.all([
           safeGet('/bank/participants/approved', []),
-          safeGet('/bank/view-all-tokens', [])
+          safeGet('/bank/view-all-tokens', []),
+          safeGet('/token-requests/pending', []),
+          safeGet('/mint-requests/pending', []),
+          safeGet('/bank/customer-registrations/pending', []),
+          safeGet('/bank/customer-mint-requests/pending', []),
+          safeGet('/token-transfer-history', []),
+          safeGet('/participant/transfer-history', [])
         ]);
         
+        // Calculate total pending approvals
+        const totalPending = 
+          (Array.isArray(pendingTokenReqs) ? pendingTokenReqs.length : 0) +
+          (Array.isArray(pendingMintReqs) ? pendingMintReqs.length : 0) +
+          (Array.isArray(pendingCustomerRegs) ? pendingCustomerRegs.length : 0) +
+          (Array.isArray(pendingCustomerMints) ? pendingCustomerMints.length : 0);
+        
+        // Calculate today's transactions
+        const today = new Date().toDateString();
+        const todayTransactions = [
+          ...(Array.isArray(tokenTransferHistory) ? tokenTransferHistory : []),
+          ...(Array.isArray(participantTransferHistory) ? participantTransferHistory : [])
+        ].filter(tx => {
+          if (!tx.timestamp) return false;
+          const txDate = new Date(tx.timestamp).toDateString();
+          return txDate === today;
+        }).length;
+        
         setStats({
-          customers: participants?.length || 0,
-          pendingApprovals: 0,
-          activeCurrencies: currencies?.length || 0,
-          transactions: 0
+          customers: Array.isArray(participants) ? participants.length : 0,
+          pendingApprovals: totalPending,
+          activeCurrencies: Array.isArray(currencies) ? currencies.length : 0,
+          transactions: todayTransactions
         });
       } catch (error) {
         console.warn('Failed to fetch stats:', error);
