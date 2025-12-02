@@ -293,19 +293,19 @@ const ParticipantDashboard = () => {
         <StatCard 
           icon="💼" 
           label="Account Balance" 
-          value={walletBalance ? `$${walletBalance.toLocaleString()}` : '—'} 
+          value={stats.balance > 0 ? `$${stats.balance.toLocaleString()}` : '—'} 
           subtext="Available funds" 
         />
         <StatCard 
           icon="⏳" 
           label="Pending Requests" 
-          value="0" 
+          value={stats.pendingRequests.toLocaleString()} 
           subtext="Awaiting approval" 
         />
         <StatCard 
           icon="✅" 
           label="Completed Today" 
-          value="0" 
+          value={stats.completedToday.toLocaleString()} 
           subtext="Successful transfers" 
         />
       </div>
