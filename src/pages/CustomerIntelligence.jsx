@@ -185,6 +185,11 @@ const ParticipantDashboard = () => {
   const [latestRegistration, setLatestRegistration] = useState(() => getStoredRegistrationSnapshot());
   const [selectedFunction, setSelectedFunction] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
+  const [stats, setStats] = useState({
+    balance: 0,
+    pendingRequests: 0,
+    completedToday: 0
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -207,6 +212,70 @@ const ParticipantDashboard = () => {
       window.removeEventListener('latest-registration-credentials', handleCustomEvent);
     };
   }, []);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const registration = getStoredRegistrationSnapshot();
+        
+        // Only fetch if we have registration credentials
+        if (!registration?.network_address) {
+          return;
+        }
+
+        const [transferHistory, allTokens] = await Promise.all([
+          safeGet('/participant/transfer-history', { 
+            params: { 
+              networkAddress: registration.network_address 
+            } 
+          }),
+          safeGet('/bank/view-all-tokens', [])
+        ]);
+        
+        // Try to get wallet balance if we have a token
+        let balance = 0;
+        if (allTokens && allTokens.length > 0 && registration.password_hash) {
+          const walletData = await safeGet('/customer/wallet', {
+            params: {
+              networkAddress: registration.network_address,
+              tokenID: allTokens[0].id || allTokens[0].tokenID,
+              passwordHash: registration.password_hash
+            }
+          });
+          balance = walletData?.balance || walletData?.amount || 0;
+        }
+        
+        // Calculate pending and completed today
+        const today = new Date().toDateString();
+        const transfers = Array.isArray(transferHistory) ? transferHistory : [];
+        
+        const pendingCount = transfers.filter(tx => 
+          tx.status === 'pending' || tx.status === 'requested'
+        ).length;
+        
+        const completedToday = transfers.filter(tx => {
+          if (tx.status !== 'completed' && tx.status !== 'approved') return false;
+          if (!tx.timestamp) return false;
+          const txDate = new Date(tx.timestamp).toDateString();
+          return txDate === today;
+        }).length;
+        
+        setStats({
+          balance,
+          pendingRequests: pendingCount,
+          completedToday
+        });
+        
+        if (balance > 0) {
+          setWalletBalance(balance);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch customer stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, [latestRegistration]);
 
   return (
     <div className="space-y-8">
