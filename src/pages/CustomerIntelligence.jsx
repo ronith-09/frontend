@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FunctionCard } from '../components';
+import { safeGet } from '../services/apiClient';
 
 const cleanPayload = payload =>
   Object.entries(payload).reduce((acc, [key, value]) => {
@@ -12,8 +13,9 @@ const cleanPayload = payload =>
 const PARTICIPANT_FUNCTIONS = [
   {
     key: 'viewAllTokens',
-    title: 'viewAllTokens',
-    description: 'List every token available on-chain via /api/bank/view-all-tokens.',
+    icon: '💰',
+    title: 'View Available Currencies',
+    description: 'Browse all available currencies for international transactions.',
     method: 'GET',
     endpoint: '/bank/view-all-tokens',
     fields: [],
@@ -21,15 +23,16 @@ const PARTICIPANT_FUNCTIONS = [
   },
   {
     key: 'registerCustomer',
-    title: 'registerCustomer',
-    description: 'Register a customer wallet for a given token.',
+    icon: '✅',
+    title: 'Register for Currency',
+    description: 'Register your account to access a specific currency.',
     method: 'POST',
     endpoint: '/bank/register-customer',
     fields: [
-      { name: 'networkAddress', label: 'networkAddress', required: true, placeholder: 'customer network hash' },
-      { name: 'name', label: 'name', required: true, placeholder: 'Customer name' },
-      { name: 'passwordHash', label: 'passwordHash', required: true, placeholder: 'SHA-256 hash' },
-      { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' }
+      { name: 'networkAddress', label: 'Your Account ID', required: true, placeholder: 'Your account identifier' },
+      { name: 'name', label: 'Full Name', required: true, placeholder: 'Enter your full name' },
+      { name: 'passwordHash', label: 'Security Code', required: true, placeholder: 'Your security code' },
+      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency ID to register for' }
     ],
     buildRequest: values => ({
       data: cleanPayload({
@@ -42,16 +45,17 @@ const PARTICIPANT_FUNCTIONS = [
   },
   {
     key: 'customerRequestMint',
-    title: 'customerRequestMint',
-    description: 'Submit a mint request for additional supply through /api/bank/request-mint.',
+    icon: '💵',
+    title: 'Request Funds',
+    description: 'Submit a request to add funds to your account.',
     method: 'POST',
     endpoint: '/bank/request-mint',
     fields: [
-      { name: 'networkAddress', label: 'networkAddress', required: true, placeholder: 'owner network hash' },
-      { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-      { name: 'amount', label: 'amount', required: true, type: 'number', placeholder: '1000' },
-      { name: 'passwordHash', label: 'passwordHash', required: true, placeholder: 'SHA-256 hash' },
-      { name: 'reason', label: 'reason', placeholder: 'Optional description' }
+      { name: 'networkAddress', label: 'Account ID', required: true, placeholder: 'Your account identifier' },
+      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency ID' },
+      { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to request' },
+      { name: 'passwordHash', label: 'Security Code', required: true, placeholder: 'Your security code' },
+      { name: 'reason', label: 'Reason', placeholder: 'Reason for fund request (optional)' }
     ],
     buildRequest: values => ({
       data: cleanPayload({
@@ -65,27 +69,28 @@ const PARTICIPANT_FUNCTIONS = [
   },
   {
     key: 'createTransferRequest',
-    title: 'createTransferRequest',
-    description: 'Create a participant transfer request via /api/transfer-request.',
+    icon: '🔄',
+    title: 'Transfer Funds',
+    description: 'Initiate an international fund transfer to another customer.',
     method: 'POST',
     endpoint: '/transfer-request',
     fields: [
-      { name: 'senderParticipantID', label: 'senderParticipantID', required: true, placeholder: 'sender participant ID' },
-      { name: 'receiverParticipantID', label: 'receiverParticipantID', required: true, placeholder: 'receiver participant ID' },
+      { name: 'senderParticipantID', label: 'Your Customer ID', required: true, placeholder: 'Your customer identifier' },
+      { name: 'receiverParticipantID', label: 'Recipient Customer ID', required: true, placeholder: 'Recipient identifier' },
       {
         name: 'senderTokenTransferID',
-        label: 'senderTokenTransferID',
+        label: 'Your Transfer ID',
         required: true,
-        placeholder: 'sender token transfer ID'
+        placeholder: 'Your transfer account ID'
       },
       {
         name: 'receiverTokenTransferID',
-        label: 'receiverTokenTransferID',
+        label: 'Recipient Transfer ID',
         required: true,
-        placeholder: 'receiver token transfer ID'
+        placeholder: 'Recipient transfer account ID'
       },
-      { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-      { name: 'amount', label: 'amount', required: true, type: 'number', placeholder: '100' }
+      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency to transfer' },
+      { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to transfer' }
     ],
     buildRequest: values => ({
       data: cleanPayload({
@@ -100,15 +105,16 @@ const PARTICIPANT_FUNCTIONS = [
   },
   {
     key: 'viewCustomerWallet',
-    title: 'viewCustomerWallet',
-    description: 'Inspect a customer wallet by calling /api/customer/wallet.',
+    icon: '💼',
+    title: 'View Account Balance',
+    description: 'Check your current account balance and details.',
     method: 'GET',
     endpoint: '/customer/wallet',
     fields: [
-      { name: 'userId', label: 'userId', placeholder: 'customer username' },
-      { name: 'networkAddress', label: 'networkAddress', required: true, placeholder: 'customer network hash' },
-      { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-      { name: 'passwordHash', label: 'passwordHash', required: true, placeholder: 'SHA-256 hash' }
+      { name: 'userId', label: 'Username', placeholder: 'Your username (optional)' },
+      { name: 'networkAddress', label: 'Account ID', required: true, placeholder: 'Your account identifier' },
+      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency ID to check' },
+      { name: 'passwordHash', label: 'Security Code', required: true, placeholder: 'Your security code' }
     ],
     buildRequest: values => ({
       params: cleanPayload({
@@ -121,14 +127,15 @@ const PARTICIPANT_FUNCTIONS = [
   },
   {
     key: 'listParticipantTransferHistory',
-    title: 'listParticipantTransferHistory',
-    description: 'View your settled transfer history via /api/participant/transfer-history.',
+    icon: '📊',
+    title: 'Transaction History',
+    description: 'View your complete transaction history.',
     method: 'GET',
     endpoint: '/participant/transfer-history',
     fields: [
-      { name: 'userId', label: 'userId', placeholder: 'participant identity' },
-      { name: 'networkAddress', label: 'networkAddress', placeholder: 'participant network hash (optional)' },
-      { name: 'passwordHash', label: 'passwordHash', placeholder: 'SHA-256 hash (optional)' }
+      { name: 'userId', label: 'Username', placeholder: 'Your username (optional)' },
+      { name: 'networkAddress', label: 'Account ID', placeholder: 'Your account identifier (optional)' },
+      { name: 'passwordHash', label: 'Security Code', placeholder: 'Your security code (optional)' }
     ],
     buildRequest: values => ({
       params: cleanPayload({
@@ -150,8 +157,34 @@ const getStoredRegistrationSnapshot = () => {
   }
 };
 
+const QuickActionCard = ({ icon, title, description, onClick }) => (
+  <button
+    onClick={onClick}
+    className="glass-panel p-6 text-left transition border border-white/5 hover:border-accent/40 hover:bg-accent/5 group"
+  >
+    <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">{icon}</div>
+    <h3 className="text-lg font-semibold mb-1">{title}</h3>
+    <p className="text-sm text-white/60">{description}</p>
+  </button>
+);
+
+const StatCard = ({ icon, label, value, subtext }) => (
+  <div className="glass-panel p-6 border border-white/5">
+    <div className="flex items-start justify-between">
+      <div className="flex-1">
+        <p className="text-xs uppercase tracking-wide text-white/50 mb-1">{label}</p>
+        <p className="text-3xl font-bold text-white mb-1">{value}</p>
+        {subtext && <p className="text-xs text-white/40">{subtext}</p>}
+      </div>
+      <div className="text-3xl opacity-20">{icon}</div>
+    </div>
+  </div>
+);
+
 const ParticipantDashboard = () => {
   const [latestRegistration, setLatestRegistration] = useState(() => getStoredRegistrationSnapshot());
+  const [selectedFunction, setSelectedFunction] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,51 +210,119 @@ const ParticipantDashboard = () => {
 
   return (
     <div className="space-y-8">
-      <div className="glass-panel p-6 space-y-3">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/40">participant fabric console</p>
-        <h2 className="text-2xl font-semibold">Customer Dashboard • Direct Blockchain Calls</h2>
-        <p className="text-sm text-white/60">
-          Use the panels below to call the participant-facing Fabric functions (<code>viewAllTokens</code>,{' '}
-          <code>registerCustomer</code>, <code>customerRequestMint</code>, <code>createTransferRequest</code>,{' '}
-          <code>viewCustomerWallet</code>) directly through their REST adapters.
-        </p>
+      <div className="glass-panel p-6 space-y-4 border border-white/5">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-white/40">Customer Portal</p>
+          <h2 className="text-3xl font-bold mt-1">International Banking Services</h2>
+          <p className="text-sm text-white/60 mt-2">
+            Access your accounts, transfer funds internationally, and manage your transactions securely.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard 
+          icon="💼" 
+          label="Account Balance" 
+          value={walletBalance ? `$${walletBalance.toLocaleString()}` : '—'} 
+          subtext="Available funds" 
+        />
+        <StatCard 
+          icon="⏳" 
+          label="Pending Requests" 
+          value="0" 
+          subtext="Awaiting approval" 
+        />
+        <StatCard 
+          icon="✅" 
+          label="Completed Today" 
+          value="0" 
+          subtext="Successful transfers" 
+        />
       </div>
 
       {latestRegistration?.wallet_created && (
-        <div className="glass-panel border border-accent/30 p-4 space-y-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-accent">latest registration snapshot</p>
-          <p className="text-sm text-white/60">
-            Captured at registration time. Use this network address and password hash when hitting the participant APIs.
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <p className="text-[11px] uppercase text-white/40">username</p>
-              <p className="font-mono text-sm break-all">{latestRegistration.username}</p>
+        <div className="glass-panel border-2 border-accent/30 p-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔑</span>
+            <p className="text-sm uppercase tracking-wide text-accent font-semibold">Your Account Information</p>
+          </div>
+          <p className="text-sm text-white/70">Use these credentials when performing transactions.</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-xs uppercase text-white/40 mb-1">Username</p>
+              <p className="font-mono text-sm text-white break-all">{latestRegistration.username}</p>
             </div>
-            <div>
-              <p className="text-[11px] uppercase text-white/40">role</p>
-              <p className="text-sm">{latestRegistration.role}</p>
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-xs uppercase text-white/40 mb-1">Account Type</p>
+              <p className="text-sm text-white">{latestRegistration.role === 'customer' ? 'Customer Account' : latestRegistration.role}</p>
             </div>
           </div>
-          <div>
-            <p className="text-[11px] uppercase text-white/40">network address</p>
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-xs uppercase text-white/40 mb-1">Account ID</p>
             <p className="font-mono text-sm break-all text-accent">{latestRegistration.network_address || '—'}</p>
           </div>
-          <div>
-            <p className="text-[11px] uppercase text-white/40">password hash</p>
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-xs uppercase text-white/40 mb-1">Security Code</p>
             <p className="font-mono text-sm break-all text-accentSecondary">{latestRegistration.password_hash || '—'}</p>
           </div>
-          <p className="text-[11px] text-white/40">
-            Stored locally{' '}
-            {latestRegistration.timestamp ? `• ${new Date(latestRegistration.timestamp).toLocaleString()}` : ''}
+          <p className="text-xs text-white/40">
+            Last updated {latestRegistration.timestamp ? `• ${new Date(latestRegistration.timestamp).toLocaleString()}` : ''}
           </p>
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {PARTICIPANT_FUNCTIONS.map(fn => (
-          <FunctionCard key={fn.key} {...fn} />
-        ))}
+      <div>
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold mb-2">Quick Actions</h3>
+          <p className="text-sm text-white/60">Common operations for managing your international transactions</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <QuickActionCard
+            icon="🔄"
+            title="Transfer Funds"
+            description="Send money internationally"
+            onClick={() => {
+              const transferFunc = PARTICIPANT_FUNCTIONS.find(f => f.key === 'createTransferRequest');
+              setSelectedFunction(transferFunc);
+              document.getElementById('operations-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+          <QuickActionCard
+            icon="💵"
+            title="Request Funds"
+            description="Add funds to your account"
+            onClick={() => {
+              const requestFunc = PARTICIPANT_FUNCTIONS.find(f => f.key === 'customerRequestMint');
+              setSelectedFunction(requestFunc);
+              document.getElementById('operations-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+          <QuickActionCard
+            icon="📊"
+            title="View History"
+            description="Check transaction history"
+            onClick={() => {
+              const historyFunc = PARTICIPANT_FUNCTIONS.find(f => f.key === 'listParticipantTransferHistory');
+              setSelectedFunction(historyFunc);
+              document.getElementById('operations-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+        </div>
+      </div>
+
+      <div id="operations-section">
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold mb-2">All Services</h3>
+          <p className="text-sm text-white/60">Complete list of available banking operations</p>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {PARTICIPANT_FUNCTIONS.map(fn => (
+            <div key={fn.key} className={selectedFunction?.key === fn.key ? 'ring-2 ring-accent rounded-2xl' : ''}>
+              <FunctionCard {...fn} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
