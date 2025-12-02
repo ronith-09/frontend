@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FunctionCard } from '../components';
+import { safeGet } from '../services/apiClient';
 
 const cleanPayload = payload =>
   Object.entries(payload).reduce((acc, [key, value]) => {
@@ -12,27 +13,27 @@ const cleanPayload = payload =>
 const LANES = [
   {
     key: 'register',
-    title: 'Register lane',
-    subtitle: 'Onboard participants',
-    helper:
-      '1) Register the participant identity on Fabric. 2) Check whether the generated network address already exists.',
+    icon: '👥',
+    title: 'Customer Registration',
+    subtitle: 'Onboard new customers',
+    helper: 'Register new customers and verify their account information.',
     functions: [
       {
         key: 'submitRegistration',
-        title: 'submitRegistration',
-        description: 'Register a participant identity via /api/participant/register.',
+        title: 'Register New Customer',
+        description: 'Create a new customer account in the system.',
         method: 'POST',
         endpoint: '/participant/register',
         fields: [
-          { name: 'userId', label: 'userId', placeholder: 'alice', required: true },
-          { name: 'password', label: 'password', placeholder: 'Plaintext password (optional)', type: 'password' },
+          { name: 'userId', label: 'Customer Username', placeholder: 'Enter username (e.g., alice)', required: true },
+          { name: 'password', label: 'Password', placeholder: 'Create password (optional)', type: 'password' },
           {
             name: 'passwordHash',
-            label: 'passwordHash',
-            placeholder: 'SHA-256 hash',
-            helper: 'If provided, password is ignored'
+            label: 'Security Code',
+            placeholder: 'Pre-generated security code (if available)',
+            helper: 'If provided, password field will be ignored'
           },
-          { name: 'country', label: 'country', defaultValue: 'US', placeholder: 'US' }
+          { name: 'country', label: 'Country', defaultValue: 'US', placeholder: 'Country code (e.g., US, UK)' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
@@ -45,11 +46,11 @@ const LANES = [
       },
       {
         key: 'participantExists',
-        title: 'participantExists',
-        description: 'Check if a network address already exists on-chain.',
+        title: 'Check Customer Exists',
+        description: 'Verify if a customer account already exists.',
         method: 'GET',
         endpoint: '/participant/exists',
-        fields: [{ name: 'networkAddress', label: 'networkAddress', required: true, placeholder: '0xabc...' }],
+        fields: [{ name: 'networkAddress', label: 'Account ID', required: true, placeholder: 'Enter account identifier' }],
         buildRequest: values => ({
           params: cleanPayload({ networkAddress: values.networkAddress })
         })
@@ -58,28 +59,29 @@ const LANES = [
   },
   {
     key: 'token',
-    title: 'Token lane',
-    subtitle: 'Token access lifecycle',
-    helper: 'Request token access and retrieve the resulting permissions after approval.',
+    icon: '💰',
+    title: 'Currency Access',
+    subtitle: 'Manage currency permissions',
+    helper: 'Request and manage access to different currency types for your bank.',
     functions: [
       {
         key: 'requestTokenRequest',
-        title: 'requestTokenRequest',
-        description: 'Submit a token access request via /api/token-request.',
+        title: 'Request Currency Access',
+        description: 'Submit a request to access a new currency type.',
         method: 'POST',
         endpoint: '/token-request',
         fields: [
-          { name: 'userId', label: 'userId', required: true, placeholder: 'alice' },
-          { name: 'name', label: 'name', required: true, placeholder: 'Alice Bank' },
-          { name: 'networkAddress', label: 'networkAddress', placeholder: 'network hash' },
-          { name: 'password', label: 'password', type: 'password', placeholder: 'Plaintext password' },
+          { name: 'userId', label: 'Bank User ID', required: true, placeholder: 'Your bank user ID' },
+          { name: 'name', label: 'Bank Name', required: true, placeholder: 'Your bank name' },
+          { name: 'networkAddress', label: 'Bank Account ID', placeholder: 'Your bank account identifier' },
+          { name: 'password', label: 'Password', type: 'password', placeholder: 'Your password' },
           {
             name: 'passwordHash',
-            label: 'passwordHash',
-            placeholder: 'SHA-256 hash',
-            helper: 'Optional override for password'
+            label: 'Security Code',
+            placeholder: 'Pre-generated security code',
+            helper: 'Optional alternative to password'
           },
-          { name: 'country', label: 'country', defaultValue: 'US', placeholder: 'US' }
+          { name: 'country', label: 'Country', defaultValue: 'US', placeholder: 'Country code' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
@@ -94,14 +96,14 @@ const LANES = [
       },
       {
         key: 'getTokenAccess',
-        title: 'getTokenAccess',
-        description: 'Evaluate token access via /api/bank/get-token-access.',
+        title: 'Check Currency Access',
+        description: 'Verify your access permissions for a specific currency.',
         method: 'POST',
         endpoint: '/bank/get-token-access',
         fields: [
-          { name: 'userId', label: 'userId', required: true, placeholder: 'alice' },
-          { name: 'networkAddress', label: 'networkAddress', required: true, placeholder: 'network hash' },
-          { name: 'tokenId', label: 'tokenId', required: true, placeholder: 'token_1' }
+          { name: 'userId', label: 'Bank User ID', required: true, placeholder: 'Your bank user ID' },
+          { name: 'networkAddress', label: 'Bank Account ID', required: true, placeholder: 'Your bank account identifier' },
+          { name: 'tokenId', label: 'Currency ID', required: true, placeholder: 'Currency identifier (e.g., USD_COIN)' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
@@ -115,21 +117,22 @@ const LANES = [
   },
   {
     key: 'mint',
-    title: 'Mint lane',
-    subtitle: 'Supply requests',
-    helper: 'Submit a mint request and inspect wallet details for verification.',
+    icon: '💵',
+    title: 'Issue Funds',
+    subtitle: 'Add funds to accounts',
+    helper: 'Submit requests to issue new funds and check account balances.',
     functions: [
       {
         key: 'requestMintCoins',
-        title: 'requestMintCoins',
-        description: 'Submit a mint request via /api/mint-request.',
+        title: 'Request to Issue Funds',
+        description: 'Submit a request to add funds to an account.',
         method: 'POST',
         endpoint: '/mint-request',
         fields: [
-          { name: 'userId', label: 'userId', required: true, placeholder: 'alice' },
-          { name: 'networkAddress', label: 'networkAddress', required: true, placeholder: 'network hash' },
-          { name: 'amount', label: 'amount', required: true, type: 'number', placeholder: '1000' },
-          { name: 'password', label: 'password', type: 'password', placeholder: 'Plaintext password (hashed server-side)' }
+          { name: 'userId', label: 'Bank User ID', required: true, placeholder: 'Your bank user ID' },
+          { name: 'networkAddress', label: 'Bank Account ID', required: true, placeholder: 'Your bank account identifier' },
+          { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to issue (e.g., 1000)' },
+          { name: 'password', label: 'Password', type: 'password', placeholder: 'Your password for verification' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
@@ -142,15 +145,15 @@ const LANES = [
       },
       {
         key: 'getWalletInfo',
-        title: 'getWalletInfo',
-        description: 'Retrieve wallet information via /api/bank/wallet.',
+        title: 'View Account Balance',
+        description: 'Check the current balance and details of an account.',
         method: 'GET',
         endpoint: '/bank/wallet',
         fields: [
-          { name: 'userId', label: 'userId', required: true, placeholder: 'alice' },
-          { name: 'networkAddress', label: 'networkAddress', required: true, placeholder: 'network hash' },
-          { name: 'password', label: 'password', type: 'password', placeholder: 'Plaintext password (optional)' },
-          { name: 'passwordHash', label: 'passwordHash', placeholder: 'SHA-256 hash', helper: 'Preferred input if already hashed' }
+          { name: 'userId', label: 'Bank User ID', required: true, placeholder: 'Bank user ID' },
+          { name: 'networkAddress', label: 'Account ID', required: true, placeholder: 'Account identifier' },
+          { name: 'password', label: 'Password', type: 'password', placeholder: 'Password (optional)' },
+          { name: 'passwordHash', label: 'Security Code', placeholder: 'Security code (preferred if available)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -165,19 +168,20 @@ const LANES = [
   },
   {
     key: 'transfer',
-    title: 'Transfer lane',
-    subtitle: 'Owner approvals + monitoring',
-    helper: 'List transfer requests for owners or receivers and approve them directly from the dashboard.',
+    icon: '🔄',
+    title: 'Transfer Approvals',
+    subtitle: 'Review and approve transfers',
+    helper: 'View transfer requests and approve transactions between accounts.',
     functions: [
       {
         key: 'viewTransferRequestsForOwner',
-        title: 'viewTransferRequestsForOwner',
-        description: 'Fetch owner-linked transfer requests via /api/transfer-requests/owner.',
+        title: 'View Sender Transfer Requests',
+        description: 'View transfer requests where you are the sender.',
         method: 'GET',
         endpoint: '/transfer-requests/owner',
         fields: [
-          { name: 'ownerID', label: 'ownerID', required: true, placeholder: 'owner transfer ID' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to admin)' }
+          { name: 'ownerID', label: 'Sender Account ID', required: true, placeholder: 'Sender account identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional, defaults to system)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({ ownerID: values.ownerID, userId: values.userId })
@@ -185,13 +189,13 @@ const LANES = [
       },
       {
         key: 'viewTransferRequestsForReceiver',
-        title: 'viewTransferRequestsForReceiver',
-        description: 'Fetch receiver-linked transfer requests via /api/transfer-requests/receiver.',
+        title: 'View Receiver Transfer Requests',
+        description: 'View transfer requests where you are the receiver.',
         method: 'GET',
         endpoint: '/transfer-requests/receiver',
         fields: [
-          { name: 'receiverID', label: 'receiverID', required: true, placeholder: 'receiver transfer ID' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to admin)' }
+          { name: 'receiverID', label: 'Receiver Account ID', required: true, placeholder: 'Receiver account identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({ receiverID: values.receiverID, userId: values.userId })
@@ -199,40 +203,39 @@ const LANES = [
       },
       {
         key: 'approveTransferByOwner',
-        title: 'approveTransferByOwner',
-        description: 'Approve pending transfers via /api/transfer-requests/:transferId/approve-owner.',
+        title: 'Approve Transfer (Sender)',
+        description: 'Approve a pending transfer as the sender.',
         method: 'POST',
         endpoint: '/transfer-requests/:transferId/approve-owner',
         fields: [
-          { name: 'transferId', label: 'transferId', required: true, placeholder: 'Transfer request ID' },
-          { name: 'approver', label: 'approver', placeholder: 'owner identity submitting approval' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity if different' }
+          { name: 'transferId', label: 'Transfer Request ID', required: true, placeholder: 'Enter transfer request ID' },
+          { name: 'approver', label: 'Approver Account ID', placeholder: 'Your account ID for approval' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => {
           if (!values.transferId) {
-            throw new Error('transferId is required to approve a transfer');
+            throw new Error('Transfer Request ID is required');
           }
           return {
             url: `/transfer-requests/${encodeURIComponent(values.transferId)}/approve-owner`,
             data: cleanPayload({ approver: values.approver, userId: values.userId })
           };
         }
-      }
-      ,
+      },
       {
         key: 'approveTransferByReceiverOwner',
-        title: 'approveTransferByReceiverOwner',
-        description: 'Receiver owner approval via /api/transfer-requests/:transferId/approve-receiver-owner.',
+        title: 'Approve Transfer (Receiver)',
+        description: 'Approve a pending transfer as the receiver.',
         method: 'POST',
         endpoint: '/transfer-requests/:transferId/approve-receiver-owner',
         fields: [
-          { name: 'transferId', label: 'transferId', required: true, placeholder: 'Transfer request ID' },
-          { name: 'approver', label: 'approver', placeholder: 'receiver owner network address' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity if different' }
+          { name: 'transferId', label: 'Transfer Request ID', required: true, placeholder: 'Enter transfer request ID' },
+          { name: 'approver', label: 'Approver Account ID', placeholder: 'Your account ID for approval' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => {
           if (!values.transferId) {
-            throw new Error('transferId is required to approve a transfer');
+            throw new Error('Transfer Request ID is required');
           }
           return {
             url: `/transfer-requests/${encodeURIComponent(values.transferId)}/approve-receiver-owner`,
@@ -244,19 +247,20 @@ const LANES = [
   },
   {
     key: 'list',
-    title: 'List lane',
-    subtitle: 'Approved participants and participant mint data',
-    helper: 'Bank view restricted to approved participants and participant-level mint activity.',
+    icon: '📋',
+    title: 'Customer Records',
+    subtitle: 'View approved customers and transactions',
+    helper: 'Access records of approved customers and their transaction history.',
     functions: [
       {
         key: 'listApprovedParticipants',
-        title: 'listApprovedParticipants',
-        description: 'List participants that have been approved via /api/bank/participants/approved.',
+        title: 'View Approved Customers',
+        description: 'List all customers that have been approved for banking services.',
         method: 'GET',
         endpoint: '/bank/participants/approved',
         fields: [
-          { name: 'networkAddress', label: 'networkAddress', placeholder: 'filter by participant network hash (optional)' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (default admin)' }
+          { name: 'networkAddress', label: 'Customer Account ID', placeholder: 'Filter by account ID (optional)' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({ networkAddress: values.networkAddress, userId: values.userId })
@@ -264,12 +268,12 @@ const LANES = [
       },
       {
         key: 'listApprovedParticipantMintRequests',
-        title: 'listApprovedParticipantMintRequests',
-        description: 'View all approved customer mint requests via /api/participant-mint-requests/approved.',
+        title: 'View Approved Fund Requests',
+        description: 'View all approved customer fund issuance requests.',
         method: 'GET',
         endpoint: '/participant-mint-requests/approved',
         fields: [
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (default admin)' }
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -279,13 +283,13 @@ const LANES = [
       },
       {
         key: 'listTokenToTokenTransferHistory',
-        title: 'listTokenToTokenTransferHistory',
-        description: 'View token-to-token transfer history via /api/token-transfer-history.',
+        title: 'View Currency Transfer History',
+        description: 'View the history of transfers for a specific currency.',
         method: 'GET',
         endpoint: '/token-transfer-history',
         fields: [
-          { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (default admin)' }
+          { name: 'tokenID', label: 'Currency ID', required: true, placeholder: 'Currency identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -296,13 +300,13 @@ const LANES = [
       },
       {
         key: 'listParticipantTransferHistory',
-        title: 'listParticipantTransferHistory',
-        description: 'Fetch participant transfer history (bank view) via /api/participant/transfer-history.',
+        title: 'View Customer Transaction History',
+        description: 'View the complete transaction history for a specific customer.',
         method: 'GET',
         endpoint: '/participant/transfer-history',
         fields: [
-          { name: 'participantID', label: 'participantID', required: true, placeholder: 'participant network/transfer id' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to admin/bank)' }
+          { name: 'participantID', label: 'Customer ID', required: true, placeholder: 'Customer account identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -315,22 +319,23 @@ const LANES = [
   },
   {
     key: 'tokenTransfer',
-    title: 'Token-to-token lane',
-    subtitle: 'Move minted supply across tokens',
-    helper: 'Initiate token transfer requests, monitor pending approvals for receiver tokens, and finalize them.',
+    icon: '↔️',
+    title: 'Currency Exchange',
+    subtitle: 'Transfer between currencies',
+    helper: 'Initiate and approve transfers between different currency types.',
     functions: [
       {
         key: 'createTokenTransferRequest',
-        title: 'createTokenTransferRequest',
-        description: 'Create a token-to-token transfer request via /api/token-transfer-request.',
+        title: 'Create Currency Transfer',
+        description: 'Initiate a transfer between two different currencies.',
         method: 'POST',
         endpoint: '/token-transfer-request',
         fields: [
-          { name: 'senderTokenID', label: 'senderTokenID', required: true, placeholder: 'token_1' },
-          { name: 'receiverTokenID', label: 'receiverTokenID', required: true, placeholder: 'token_2' },
-          { name: 'senderOwnerAddress', label: 'senderOwnerAddress', required: true, placeholder: 'owner network address' },
-          { name: 'amount', label: 'amount', required: true, type: 'number', placeholder: '100' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to owner)' }
+          { name: 'senderTokenID', label: 'From Currency', required: true, placeholder: 'Source currency ID' },
+          { name: 'receiverTokenID', label: 'To Currency', required: true, placeholder: 'Destination currency ID' },
+          { name: 'senderOwnerAddress', label: 'Sender Account ID', required: true, placeholder: 'Your account identifier' },
+          { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to transfer' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
@@ -344,14 +349,14 @@ const LANES = [
       },
       {
         key: 'viewPendingTokenTransferRequests',
-        title: 'viewPendingTokenTransferRequests',
-        description: 'List pending requests for a receiver token via /api/token-transfer-requests/pending.',
+        title: 'View Pending Currency Transfers',
+        description: 'List pending transfer requests for a specific currency.',
         method: 'GET',
         endpoint: '/token-transfer-requests/pending',
         fields: [
-          { name: 'receiverTokenID', label: 'receiverTokenID', required: true, placeholder: 'token_2' },
-          { name: 'receiverOwnerAddress', label: 'receiverOwnerAddress', required: true, placeholder: 'owner network address' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to owner)' }
+          { name: 'receiverTokenID', label: 'Receiving Currency', required: true, placeholder: 'Currency receiving funds' },
+          { name: 'receiverOwnerAddress', label: 'Receiver Account ID', required: true, placeholder: 'Receiver account identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -363,18 +368,18 @@ const LANES = [
       },
       {
         key: 'approveTokenTransferRequest',
-        title: 'approveTokenTransferRequest',
-        description: 'Approve a pending token transfer via /api/token-transfer-requests/:requestId/approve.',
+        title: 'Approve Currency Transfer',
+        description: 'Approve a pending currency transfer request.',
         method: 'POST',
         endpoint: '/token-transfer-requests/:requestId/approve',
         fields: [
-          { name: 'requestId', label: 'requestId', required: true, placeholder: 'tokentransfer_abc...' },
-          { name: 'receiverOwnerAddress', label: 'receiverOwnerAddress', required: true, placeholder: 'owner network address' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to owner)' }
+          { name: 'requestId', label: 'Transfer Request ID', required: true, placeholder: 'Enter request ID' },
+          { name: 'receiverOwnerAddress', label: 'Receiver Account ID', required: true, placeholder: 'Receiver account identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => {
           if (!values.requestId) {
-            throw new Error('requestId is required to approve a token transfer');
+            throw new Error('Transfer Request ID is required');
           }
           return {
             url: `/token-transfer-requests/${encodeURIComponent(values.requestId)}/approve`,
@@ -387,13 +392,13 @@ const LANES = [
       },
       {
         key: 'listTokenToTokenTransferHistory',
-        title: 'listTokenToTokenTransferHistory',
-        description: 'List historical token-to-token transfers for a token via /api/token-transfer-history.',
+        title: 'View Transfer History',
+        description: 'View historical currency transfers for a specific currency.',
         method: 'GET',
         endpoint: '/token-transfer-history',
         fields: [
-          { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to admin)' }
+          { name: 'tokenID', label: 'Currency ID', required: true, placeholder: 'Currency identifier' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -406,20 +411,21 @@ const LANES = [
   },
   {
     key: 'customer',
-    title: 'Customer lane',
-    subtitle: 'Customer registrations',
-    helper: 'Monitor and approve customer registrations for your token.',
+    icon: '✅',
+    title: 'Customer Onboarding',
+    subtitle: 'Approve customer registrations',
+    helper: 'Review and approve new customer registration requests.',
     functions: [
       {
         key: 'viewPendingCustomerRegistrations',
-        title: 'viewPendingCustomerRegistrations',
-        description: 'List registrations via /api/bank/customer-registrations/pending.',
+        title: 'View Pending Registrations',
+        description: 'List all pending customer registration requests.',
         method: 'GET',
         endpoint: '/bank/customer-registrations/pending',
         fields: [
-          { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-          { name: 'ownerNetworkAddress', label: 'ownerNetworkAddress', placeholder: 'owner hash' },
-          { name: 'customerAddress', label: 'customerAddress', placeholder: 'customer hash (optional)' }
+          { name: 'tokenID', label: 'Currency ID', required: true, placeholder: 'Currency identifier' },
+          { name: 'ownerNetworkAddress', label: 'Bank Account ID', placeholder: 'Your bank account ID' },
+          { name: 'customerAddress', label: 'Customer Account ID', placeholder: 'Customer account ID (optional filter)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -431,14 +437,14 @@ const LANES = [
       },
       {
         key: 'listApprovedCustomers',
-        title: 'listApprovedCustomers',
-        description: 'List bank-approved customer registrations via /api/bank/customer-registrations/approved.',
+        title: 'View Approved Customers',
+        description: 'List all customers that have been approved for your currency.',
         method: 'GET',
         endpoint: '/bank/customer-registrations/approved',
         fields: [
-          { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-          { name: 'ownerNetworkAddress', label: 'ownerNetworkAddress', required: true, placeholder: 'owner hash' },
-          { name: 'userId', label: 'userId', placeholder: 'wallet identity (defaults to admin)' }
+          { name: 'tokenID', label: 'Currency ID', required: true, placeholder: 'Currency identifier' },
+          { name: 'ownerNetworkAddress', label: 'Bank Account ID', required: true, placeholder: 'Your bank account ID' },
+          { name: 'userId', label: 'Bank User ID', placeholder: 'Bank user ID (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -450,26 +456,26 @@ const LANES = [
       },
       {
         key: 'approveCustomerRegistration',
-        title: 'approveCustomerRegistration',
-        description: 'Approve or reject a pending customer registration request.',
+        title: 'Approve/Reject Registration',
+        description: 'Approve or reject a customer registration request.',
         method: 'POST',
         endpoint: '/bank/customer-registrations/:requestId/approve',
         fields: [
-          { name: 'requestId', label: 'requestId', required: true, placeholder: 'registration id' },
-          { name: 'ownerNetworkAddress', label: 'ownerNetworkAddress', required: true, placeholder: 'owner hash' },
+          { name: 'requestId', label: 'Registration Request ID', required: true, placeholder: 'Registration request ID' },
+          { name: 'ownerNetworkAddress', label: 'Bank Account ID', required: true, placeholder: 'Your bank account ID' },
           {
             name: 'status',
-            label: 'status',
+            label: 'Decision',
             options: [
-              { value: 'approved', label: 'approved' },
-              { value: 'rejected', label: 'rejected' }
+              { value: 'approved', label: 'Approve' },
+              { value: 'rejected', label: 'Reject' }
             ],
             defaultValue: 'approved'
           }
         ],
         buildRequest: values => {
           if (!values.requestId) {
-            throw new Error('requestId is required to approve a registration');
+            throw new Error('Registration Request ID is required');
           }
           return {
             url: `/bank/customer-registrations/${encodeURIComponent(values.requestId)}/approve`,
@@ -484,19 +490,20 @@ const LANES = [
   },
   {
     key: 'customerMint',
-    title: 'Customer mint lane',
-    subtitle: 'Customer mint approvals',
-    helper: 'Check customer mint requests and approve or reject them.',
+    icon: '💳',
+    title: 'Customer Fund Requests',
+    subtitle: 'Approve customer fund requests',
+    helper: 'Review and approve requests from customers to add funds to their accounts.',
     functions: [
       {
         key: 'viewPendingCustomerMintRequests',
-        title: 'viewPendingCustomerMintRequests',
-        description: 'Inspect pending customer mint requests via /api/bank/customer-mint-requests/pending.',
+        title: 'View Pending Fund Requests',
+        description: 'View all pending customer requests to add funds.',
         method: 'GET',
         endpoint: '/bank/customer-mint-requests/pending',
         fields: [
-          { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
-          { name: 'ownerNetworkAddress', label: 'ownerNetworkAddress', placeholder: 'owner hash' }
+          { name: 'tokenID', label: 'Currency ID', required: true, placeholder: 'Currency identifier' },
+          { name: 'ownerNetworkAddress', label: 'Bank Account ID', placeholder: 'Your bank account ID' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
@@ -507,27 +514,27 @@ const LANES = [
       },
       {
         key: 'approveCustomerMint',
-        title: 'approveCustomerMint',
-        description: 'Approve customer mint requests via /api/bank/customer-mint-requests/:requestId/approve.',
+        title: 'Approve/Reject Fund Request',
+        description: 'Approve or reject a customer fund request.',
         method: 'POST',
         endpoint: '/bank/customer-mint-requests/:requestId/approve',
         fields: [
-          { name: 'requestId', label: 'requestId', required: true, placeholder: 'mint request id' },
-          { name: 'ownerNetworkAddress', label: 'ownerNetworkAddress', required: true, placeholder: 'owner hash' },
-          { name: 'tokenID', label: 'tokenID', required: true, placeholder: 'token_1' },
+          { name: 'requestId', label: 'Fund Request ID', required: true, placeholder: 'Request ID to approve/reject' },
+          { name: 'ownerNetworkAddress', label: 'Bank Account ID', required: true, placeholder: 'Your bank account ID' },
+          { name: 'tokenID', label: 'Currency ID', required: true, placeholder: 'Currency identifier' },
           {
             name: 'status',
-            label: 'status',
+            label: 'Decision',
             options: [
-              { value: 'approved', label: 'approved' },
-              { value: 'rejected', label: 'rejected' }
+              { value: 'approved', label: 'Approve' },
+              { value: 'rejected', label: 'Reject' }
             ],
             defaultValue: 'approved'
           }
         ],
         buildRequest: values => {
           if (!values.requestId) {
-            throw new Error('requestId is required to approve a mint request');
+            throw new Error('Fund Request ID is required');
           }
           return {
             url: `/bank/customer-mint-requests/${encodeURIComponent(values.requestId)}/approve`,
@@ -553,31 +560,47 @@ const getStoredRegistrationSnapshot = () => {
   }
 };
 
+const StatCard = ({ icon, label, value, subtext }) => (
+  <div className="glass-panel p-6 border border-white/5">
+    <div className="flex items-start justify-between">
+      <div className="flex-1">
+        <p className="text-xs uppercase tracking-wide text-white/50 mb-1">{label}</p>
+        <p className="text-3xl font-bold text-white mb-1">{value}</p>
+        {subtext && <p className="text-xs text-white/40">{subtext}</p>}
+      </div>
+      <div className="text-3xl opacity-20">{icon}</div>
+    </div>
+  </div>
+);
+
 const LaneSelector = ({ activeLane, onSelect }) => (
-  <div className="flex flex-wrap gap-3">
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
     {LANES.map(lane => (
       <button
         key={lane.key}
         type="button"
         onClick={() => onSelect(lane.key)}
-        className={`px-6 py-2 rounded-xl text-sm font-semibold transition ${
-          activeLane === lane.key ? 'bg-accent text-slate-950' : 'bg-white/10 text-white/70 hover:bg-white/20'
+        className={`p-4 rounded-xl text-left transition border ${
+          activeLane === lane.key
+            ? 'bg-accent/10 border-accent text-white'
+            : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:border-white/10'
         }`}
       >
-        {lane.title}
+        <div className="text-2xl mb-2">{lane.icon}</div>
+        <div className="text-sm font-semibold">{lane.title}</div>
       </button>
     ))}
   </div>
 );
 
 const LaneSection = ({ lane }) => (
-  <div className="glass-panel p-6 space-y-4 border border-white/5">
-    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-white/40">{lane.title}</p>
-        <h3 className="text-xl font-semibold">{lane.subtitle}</h3>
+  <div className="glass-panel p-6 space-y-6 border border-white/5">
+    <div className="flex items-start gap-4">
+      <div className="text-4xl">{lane.icon}</div>
+      <div className="flex-1">
+        <h3 className="text-2xl font-semibold mb-1">{lane.subtitle}</h3>
+        {lane.helper && <p className="text-sm text-white/60">{lane.helper}</p>}
       </div>
-      {lane.helper && <p className="text-xs text-white/50 max-w-lg">{lane.helper}</p>}
     </div>
     <div className="grid gap-6 lg:grid-cols-2">
       {lane.functions.map(fn => (
@@ -590,6 +613,12 @@ const LaneSection = ({ lane }) => (
 const BankDashboard = () => {
   const [latestRegistration, setLatestRegistration] = useState(() => getStoredRegistrationSnapshot());
   const [activeLane, setActiveLane] = useState('register');
+  const [stats, setStats] = useState({
+    customers: 0,
+    pendingApprovals: 0,
+    activeCurrencies: 0,
+    transactions: 0
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -613,48 +642,87 @@ const BankDashboard = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [participants, currencies] = await Promise.all([
+          safeGet('/bank/participants/approved', []),
+          safeGet('/bank/view-all-tokens', [])
+        ]);
+        
+        setStats({
+          customers: participants?.length || 0,
+          pendingApprovals: 0,
+          activeCurrencies: currencies?.length || 0,
+          transactions: 0
+        });
+      } catch (error) {
+        console.warn('Failed to fetch stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
   const currentLane = LANES.find(lane => lane.key === activeLane) || LANES[0];
 
   return (
     <div className="space-y-8">
-      <div className="glass-panel p-6 space-y-4">
+      <div className="glass-panel p-6 space-y-4 border border-white/5">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/40">fabric function surface</p>
-          <h2 className="text-2xl font-semibold">Bank Dashboard • Lane selector</h2>
-          <p className="text-sm text-white/60">
-            Choose a lane to focus on the exact pair of Fabric functions needed for that workflow.
+          <p className="text-xs uppercase tracking-wide text-white/40">Bank Operations Center</p>
+          <h2 className="text-3xl font-bold mt-1">International Transaction Management</h2>
+          <p className="text-sm text-white/60 mt-2">
+            Manage customer accounts, approve transactions, and oversee international fund transfers.
           </p>
         </div>
-        <LaneSelector activeLane={activeLane} onSelect={setActiveLane} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard icon="👥" label="Total Customers" value={stats.customers.toLocaleString()} subtext="Approved accounts" />
+        <StatCard icon="⏳" label="Pending Approvals" value={stats.pendingApprovals.toLocaleString()} subtext="Awaiting review" />
+        <StatCard icon="💰" label="Active Currencies" value={stats.activeCurrencies.toLocaleString()} subtext="Available for trading" />
+        <StatCard icon="📊" label="Transactions Today" value={stats.transactions.toLocaleString()} subtext="Completed transfers" />
       </div>
 
       {latestRegistration?.wallet_created && (
-        <div className="glass-panel border border-accent/30 p-4 space-y-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-accent">latest registration snapshot</p>
-          <p className="text-sm text-white/60">Use this network address & password hash when working through the lanes.</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <p className="text-[11px] uppercase text-white/40">username</p>
-              <p className="font-mono text-sm break-all">{latestRegistration.username}</p>
+        <div className="glass-panel border-2 border-accent/30 p-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔑</span>
+            <p className="text-sm uppercase tracking-wide text-accent font-semibold">Recent Registration</p>
+          </div>
+          <p className="text-sm text-white/70">Use these credentials when performing operations in the sections below.</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-xs uppercase text-white/40 mb-1">Username</p>
+              <p className="font-mono text-sm text-white break-all">{latestRegistration.username}</p>
             </div>
-            <div>
-              <p className="text-[11px] uppercase text-white/40">role</p>
-              <p className="text-sm">{latestRegistration.role}</p>
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-xs uppercase text-white/40 mb-1">Role</p>
+              <p className="text-sm text-white">{latestRegistration.role === 'bank' ? 'Bank' : latestRegistration.role === 'customer' ? 'Customer' : latestRegistration.role}</p>
             </div>
           </div>
-          <div>
-            <p className="text-[11px] uppercase text-white/40">network address</p>
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-xs uppercase text-white/40 mb-1">Account ID</p>
             <p className="font-mono text-sm break-all text-accent">{latestRegistration.network_address || '—'}</p>
           </div>
-          <div>
-            <p className="text-[11px] uppercase text-white/40">password hash</p>
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-xs uppercase text-white/40 mb-1">Security Code</p>
             <p className="font-mono text-sm break-all text-accentSecondary">{latestRegistration.password_hash || '—'}</p>
           </div>
-          <p className="text-[11px] text-white/40">
-            Stored locally {latestRegistration.timestamp ? `• ${new Date(latestRegistration.timestamp).toLocaleString()}` : ''}
+          <p className="text-xs text-white/40">
+            Saved locally {latestRegistration.timestamp ? `• ${new Date(latestRegistration.timestamp).toLocaleString()}` : ''}
           </p>
         </div>
       )}
+
+      <div className="glass-panel p-6 space-y-6 border border-white/5">
+        <div>
+          <h3 className="text-xl font-semibold mb-1">Select Operation Category</h3>
+          <p className="text-sm text-white/60">Choose a category to view and perform related banking operations.</p>
+        </div>
+        <LaneSelector activeLane={activeLane} onSelect={setActiveLane} />
+      </div>
 
       <LaneSection lane={currentLane} />
     </div>
