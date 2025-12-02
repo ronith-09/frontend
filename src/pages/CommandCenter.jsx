@@ -151,15 +151,37 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [tokenReqs, mintReqs] = await Promise.all([
+        const [
+          tokenReqs, 
+          mintReqs,
+          approvedTokens,
+          approvedMints
+        ] = await Promise.all([
           safeGet('/token-requests/pending', []),
-          safeGet('/mint-requests/pending', [])
+          safeGet('/mint-requests/pending', []),
+          safeGet('/bank/assigned-tokens', []),
+          safeGet('/mint-requests/approved', [])
         ]);
+        
+        // Calculate approved today
+        const today = new Date().toDateString();
+        const allApproved = [
+          ...(Array.isArray(approvedTokens) ? approvedTokens : []),
+          ...(Array.isArray(approvedMints) ? approvedMints : [])
+        ];
+        
+        const approvedToday = allApproved.filter(item => {
+          if (!item.timestamp && !item.approvedAt && !item.approved_at) return false;
+          const approvalDate = new Date(
+            item.timestamp || item.approvedAt || item.approved_at
+          ).toDateString();
+          return approvalDate === today;
+        }).length;
         
         setStats({
           pendingAccess: Array.isArray(tokenReqs) ? tokenReqs.length : 0,
           pendingFunds: Array.isArray(mintReqs) ? mintReqs.length : 0,
-          approved: 0
+          approved: approvedToday
         });
       } catch (error) {
         console.warn('Failed to fetch admin stats:', error);
