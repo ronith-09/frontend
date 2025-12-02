@@ -26,21 +26,27 @@ const resolveRoleFromPath = pathname => {
 
 const normalizeRole = role => (ROLE_TO_PATH[role] ? role : 'guest');
 
-const DashboardSurface = ({ title, subtitle, onExit, children }) => (
+const DashboardSurface = ({ title, subtitle, icon, onExit, children }) => (
   <div className="min-h-screen px-4 py-8 md:px-12 space-y-8">
-    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-white/50">{subtitle}</p>
-        <h1 className="text-3xl font-semibold">{title}</h1>
+    <header className="glass-panel p-6 border border-white/5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
+          {icon && <div className="text-5xl">{icon}</div>}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-white/50 mb-1">{subtitle}</p>
+            <h1 className="text-4xl font-bold">{title}</h1>
+          </div>
+        </div>
+        {onExit && (
+          <button
+            className="px-6 py-3 rounded-xl bg-white/10 text-sm font-semibold text-white hover:bg-white/20 transition"
+            onClick={onExit}
+            data-testid="sign-out-button"
+          >
+            🚪 Sign Out
+          </button>
+        )}
       </div>
-      {onExit && (
-        <button
-          className="px-4 py-2 rounded-xl bg-white/10 text-sm text-white/80 hover:bg-white/20 transition"
-          onClick={onExit}
-        >
-          Sign out
-        </button>
-      )}
     </header>
     <div className="space-y-6">{children}</div>
   </div>
@@ -77,8 +83,9 @@ function App() {
 
       {activeRole === 'admin' && (
         <DashboardSurface
-          title="Command Centre"
-          subtitle="Admin dashboard"
+          icon="🛡️"
+          title="Administrative Dashboard"
+          subtitle="System Management"
           onExit={handleExit}
         >
           <AdminDashboard />
@@ -87,8 +94,9 @@ function App() {
 
       {activeRole === 'bank' && (
         <DashboardSurface
-          title="Bank Dashboard"
-          subtitle="Token owner workspace"
+          icon="🏦"
+          title="Bank Operations Center"
+          subtitle="Institutional Management"
           onExit={handleExit}
         >
           <BankDashboard />
@@ -97,8 +105,9 @@ function App() {
 
       {activeRole === 'customer' && (
         <DashboardSurface
-          title="Participant Dashboard"
-          subtitle="Customer intelligence"
+          icon="👤"
+          title="Customer Portal"
+          subtitle="Personal Banking Services"
           onExit={handleExit}
         >
           <ParticipantDashboard />
@@ -109,4 +118,3 @@ function App() {
 }
 
 export default App;
-
