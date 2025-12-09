@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { FunctionCard } from '../components';
 import { safeGet } from '../services/apiClient';
+import client from '../services/apiClient';
 
 const cleanPayload = payload =>
   Object.entries(payload).reduce((acc, [key, value]) => {
@@ -9,143 +9,6 @@ const cleanPayload = payload =>
     }
     return acc;
   }, {});
-
-const PARTICIPANT_FUNCTIONS = [
-  {
-    key: 'viewAllTokens',
-    icon: '💰',
-    title: 'View Available Currencies',
-    description: 'Browse all available currencies for international transactions.',
-    method: 'GET',
-    endpoint: '/bank/view-all-tokens',
-    fields: [],
-    buildRequest: () => ({})
-  },
-  {
-    key: 'registerCustomer',
-    icon: '✅',
-    title: 'Register for Currency',
-    description: 'Register your account to access a specific currency.',
-    method: 'POST',
-    endpoint: '/bank/register-customer',
-    fields: [
-      { name: 'networkAddress', label: 'Your Account ID', required: true, placeholder: 'Your account identifier' },
-      { name: 'name', label: 'Full Name', required: true, placeholder: 'Enter your full name' },
-      { name: 'passwordHash', label: 'Security Code', required: true, placeholder: 'Your security code' },
-      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency ID to register for' }
-    ],
-    buildRequest: values => ({
-      data: cleanPayload({
-        networkAddress: values.networkAddress,
-        name: values.name,
-        passwordHash: values.passwordHash,
-        tokenID: values.tokenID
-      })
-    })
-  },
-  {
-    key: 'customerRequestMint',
-    icon: '💵',
-    title: 'Request Funds',
-    description: 'Submit a request to add funds to your account.',
-    method: 'POST',
-    endpoint: '/bank/request-mint',
-    fields: [
-      { name: 'networkAddress', label: 'Account ID', required: true, placeholder: 'Your account identifier' },
-      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency ID' },
-      { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to request' },
-      { name: 'passwordHash', label: 'Security Code', required: true, placeholder: 'Your security code' },
-      { name: 'reason', label: 'Reason', placeholder: 'Reason for fund request (optional)' }
-    ],
-    buildRequest: values => ({
-      data: cleanPayload({
-        networkAddress: values.networkAddress,
-        tokenID: values.tokenID,
-        amount: values.amount,
-        passwordHash: values.passwordHash,
-        reason: values.reason
-      })
-    })
-  },
-  {
-    key: 'createTransferRequest',
-    icon: '🔄',
-    title: 'Transfer Funds',
-    description: 'Initiate an international fund transfer to another customer.',
-    method: 'POST',
-    endpoint: '/transfer-request',
-    fields: [
-      { name: 'senderParticipantID', label: 'Your Customer ID', required: true, placeholder: 'Your customer identifier' },
-      { name: 'receiverParticipantID', label: 'Recipient Customer ID', required: true, placeholder: 'Recipient identifier' },
-      {
-        name: 'senderTokenTransferID',
-        label: 'Your Transfer ID',
-        required: true,
-        placeholder: 'Your transfer account ID'
-      },
-      {
-        name: 'receiverTokenTransferID',
-        label: 'Recipient Transfer ID',
-        required: true,
-        placeholder: 'Recipient transfer account ID'
-      },
-      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency to transfer' },
-      { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to transfer' }
-    ],
-    buildRequest: values => ({
-      data: cleanPayload({
-        senderParticipantID: values.senderParticipantID,
-        receiverParticipantID: values.receiverParticipantID,
-        senderTokenTransferID: values.senderTokenTransferID,
-        receiverTokenTransferID: values.receiverTokenTransferID,
-        tokenID: values.tokenID,
-        amount: values.amount
-      })
-    })
-  },
-  {
-    key: 'viewCustomerWallet',
-    icon: '💼',
-    title: 'View Account Balance',
-    description: 'Check your current account balance and details.',
-    method: 'GET',
-    endpoint: '/customer/wallet',
-    fields: [
-      { name: 'userId', label: 'Username', placeholder: 'Your username (optional)' },
-      { name: 'networkAddress', label: 'Account ID', required: true, placeholder: 'Your account identifier' },
-      { name: 'tokenID', label: 'Currency', required: true, placeholder: 'Currency ID to check' },
-      { name: 'passwordHash', label: 'Security Code', required: true, placeholder: 'Your security code' }
-    ],
-    buildRequest: values => ({
-      params: cleanPayload({
-        userId: values.userId,
-        networkAddress: values.networkAddress,
-        tokenID: values.tokenID,
-        passwordHash: values.passwordHash
-      })
-    })
-  },
-  {
-    key: 'listParticipantTransferHistory',
-    icon: '📊',
-    title: 'Transaction History',
-    description: 'View your complete transaction history.',
-    method: 'GET',
-    endpoint: '/participant/transfer-history',
-    fields: [
-      { name: 'userId', label: 'Username', placeholder: 'Your username (optional)' },
-      { name: 'networkAddress', label: 'Account ID', placeholder: 'Your account identifier (optional)' },
-      { name: 'passwordHash', label: 'Security Code', placeholder: 'Your security code (optional)' }
-    ],
-    buildRequest: values => ({
-      params: cleanPayload({
-        userId: values.userId,
-        networkAddress: values.networkAddress,
-        passwordHash: values.passwordHash
-      })
-    })
-  }
-];
 
 const getStoredRegistrationSnapshot = () => {
   if (typeof window === 'undefined') return null;
@@ -156,17 +19,6 @@ const getStoredRegistrationSnapshot = () => {
     return null;
   }
 };
-
-const QuickActionCard = ({ icon, title, description, onClick }) => (
-  <button
-    onClick={onClick}
-    className="glass-panel p-6 text-left transition border border-white/5 hover:border-accent/40 hover:bg-accent/5 group"
-  >
-    <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">{icon}</div>
-    <h3 className="text-lg font-semibold mb-1">{title}</h3>
-    <p className="text-sm text-white/60">{description}</p>
-  </button>
-);
 
 const StatCard = ({ icon, label, value, subtext }) => (
   <div className="glass-panel p-6 border border-white/5">
@@ -181,10 +33,115 @@ const StatCard = ({ icon, label, value, subtext }) => (
   </div>
 );
 
+const ActionCard = ({ icon, title, description, onClick, color = 'accent' }) => (
+  <button
+    onClick={onClick}
+    className={`glass-panel p-8 text-left transition border border-white/5 hover:border-${color}/40 hover:bg-${color}/5 group w-full`}
+    data-testid={`action-${title.toLowerCase().replace(/\s+/g, '-')}`}
+  >
+    <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">{icon}</div>
+    <h3 className="text-xl font-semibold mb-2">{title}</h3>
+    <p className="text-sm text-white/60">{description}</p>
+  </button>
+);
+
+const SimpleForm = ({ title, fields, onSubmit, onCancel, isLoading, response, error }) => {
+  const [values, setValues] = useState(
+    fields.reduce((acc, field) => {
+      acc[field.name] = field.defaultValue ?? '';
+      return acc;
+    }, {})
+  );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await onSubmit(values);
+  };
+
+  return (
+    <div className="glass-panel p-8 border border-white/5">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-semibold">{title}</h3>
+        <button
+          onClick={onCancel}
+          className="text-white/60 hover:text-white transition"
+          data-testid="close-form-button"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {fields.map(field => (
+          <div key={field.name}>
+            <label className="block text-sm font-medium text-white/90 mb-2">
+              {field.label}
+              {field.required && <span className="text-red-400 ml-1">*</span>}
+            </label>
+            <input
+              type={field.type || 'text'}
+              value={values[field.name]}
+              onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
+              placeholder={field.placeholder}
+              required={field.required}
+              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 transition"
+              data-testid={`input-${field.name}`}
+            />
+            {field.helper && <p className="text-xs text-white/50 mt-1.5">{field.helper}</p>}
+          </div>
+        ))}
+
+        <div className="flex gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex-1 rounded-xl bg-accent px-6 py-4 text-base font-semibold text-slate-950 transition hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="submit-button"
+          >
+            {isLoading ? 'Processing...' : 'Submit'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-white/20 px-8 py-4 text-base font-medium text-white/70 hover:bg-white/5 hover:text-white transition"
+            data-testid="cancel-button"
+          >
+            Cancel
+          </button>
+        </div>
+
+        {error && (
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 flex items-start gap-3" data-testid="error-message">
+            <span className="text-xl">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-300 mb-1">Request Failed</p>
+              <p className="text-sm text-red-200">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {response && (
+          <div className="rounded-xl border border-green-500/40 bg-green-500/10 p-4" data-testid="success-message">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">✅</span>
+              <p className="text-sm font-semibold text-green-300">Success</p>
+            </div>
+            <pre className="max-h-60 overflow-auto rounded-lg bg-black/30 p-4 text-xs text-white/80 font-mono">
+              {typeof response === 'string' ? response : JSON.stringify(response, null, 2)}
+            </pre>
+          </div>
+        )}
+      </form>
+    </div>
+  );
+};
+
 const ParticipantDashboard = () => {
   const [latestRegistration, setLatestRegistration] = useState(() => getStoredRegistrationSnapshot());
-  const [selectedFunction, setSelectedFunction] = useState(null);
-  const [walletBalance, setWalletBalance] = useState(null);
+  const [activeAction, setActiveAction] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [response, setResponse] = useState(null);
+  const [error, setError] = useState('');
   const [stats, setStats] = useState({
     balance: 0,
     pendingRequests: 0,
@@ -218,7 +175,6 @@ const ParticipantDashboard = () => {
       try {
         const registration = getStoredRegistrationSnapshot();
         
-        // Only fetch if we have registration credentials
         if (!registration?.network_address) {
           return;
         }
@@ -232,7 +188,6 @@ const ParticipantDashboard = () => {
           safeGet('/bank/view-all-tokens', [])
         ]);
         
-        // Try to get wallet balance if we have a token
         let balance = 0;
         if (allTokens && allTokens.length > 0 && registration.password_hash) {
           const walletData = await safeGet('/customer/wallet', {
@@ -245,7 +200,6 @@ const ParticipantDashboard = () => {
           balance = walletData?.balance || walletData?.amount || 0;
         }
         
-        // Calculate pending and completed today
         const today = new Date().toDateString();
         const transfers = Array.isArray(transferHistory) ? transferHistory : [];
         
@@ -265,10 +219,6 @@ const ParticipantDashboard = () => {
           pendingRequests: pendingCount,
           completedToday
         });
-        
-        if (balance > 0) {
-          setWalletBalance(balance);
-        }
       } catch (error) {
         console.warn('Failed to fetch customer stats:', error);
       }
@@ -277,14 +227,145 @@ const ParticipantDashboard = () => {
     fetchStats();
   }, [latestRegistration]);
 
+  const handleAction = async (values) => {
+    setIsLoading(true);
+    setError('');
+    setResponse(null);
+
+    try {
+      let requestConfig = {};
+      const cleanedValues = cleanPayload(values);
+
+      switch(activeAction) {
+        case 'send':
+          requestConfig = {
+            method: 'POST',
+            url: '/transfer-request',
+            data: cleanPayload({
+              senderParticipantID: cleanedValues.senderAccount,
+              receiverParticipantID: cleanedValues.recipientAccount,
+              senderTokenTransferID: cleanedValues.senderTransferId,
+              receiverTokenTransferID: cleanedValues.receiverTransferId,
+              tokenID: cleanedValues.currency,
+              amount: cleanedValues.amount
+            })
+          };
+          break;
+
+        case 'add':
+          requestConfig = {
+            method: 'POST',
+            url: '/bank/request-mint',
+            data: cleanPayload({
+              networkAddress: cleanedValues.accountNumber,
+              tokenID: cleanedValues.currency,
+              amount: cleanedValues.amount,
+              passwordHash: cleanedValues.securityCode,
+              reason: cleanedValues.reason
+            })
+          };
+          break;
+
+        case 'balance':
+          requestConfig = {
+            method: 'GET',
+            url: '/customer/wallet',
+            params: cleanPayload({
+              networkAddress: cleanedValues.accountNumber,
+              tokenID: cleanedValues.currency,
+              passwordHash: cleanedValues.securityCode
+            })
+          };
+          break;
+
+        case 'history':
+          requestConfig = {
+            method: 'GET',
+            url: '/participant/transfer-history',
+            params: cleanPayload({
+              networkAddress: cleanedValues.accountNumber,
+              passwordHash: cleanedValues.securityCode
+            })
+          };
+          break;
+
+        default:
+          throw new Error('Unknown action');
+      }
+
+      const { data } = await client(requestConfig);
+      setResponse(data);
+    } catch (requestError) {
+      const detail =
+        requestError?.response?.data?.detail ||
+        requestError?.response?.data?.error ||
+        requestError?.message ||
+        'Unable to complete request';
+      setError(detail);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getFormFields = () => {
+    const registration = latestRegistration || {};
+    
+    switch(activeAction) {
+      case 'send':
+        return [
+          { name: 'senderAccount', label: 'Your Customer ID', required: true, placeholder: 'Your customer identifier', defaultValue: registration.network_address || '' },
+          { name: 'recipientAccount', label: 'Recipient Customer ID', required: true, placeholder: 'Recipient identifier' },
+          { name: 'senderTransferId', label: 'Your Transfer Account', required: true, placeholder: 'Your transfer account ID' },
+          { name: 'receiverTransferId', label: 'Recipient Transfer Account', required: true, placeholder: 'Recipient transfer account ID' },
+          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' },
+          { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Enter amount' }
+        ];
+      
+      case 'add':
+        return [
+          { name: 'accountNumber', label: 'Your Account Number', required: true, placeholder: 'Your account number', defaultValue: registration.network_address || '' },
+          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' },
+          { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to add' },
+          { name: 'securityCode', label: 'Security Code', required: true, placeholder: 'Your security code', defaultValue: registration.password_hash || '' },
+          { name: 'reason', label: 'Purpose (Optional)', placeholder: 'Reason for adding funds' }
+        ];
+      
+      case 'balance':
+        return [
+          { name: 'accountNumber', label: 'Account Number', required: true, placeholder: 'Your account number', defaultValue: registration.network_address || '' },
+          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' },
+          { name: 'securityCode', label: 'Security Code', required: true, placeholder: 'Your security code', defaultValue: registration.password_hash || '' }
+        ];
+      
+      case 'history':
+        return [
+          { name: 'accountNumber', label: 'Account Number', placeholder: 'Your account number (optional)', defaultValue: registration.network_address || '' },
+          { name: 'securityCode', label: 'Security Code', placeholder: 'Your security code (optional)', defaultValue: registration.password_hash || '' }
+        ];
+      
+      default:
+        return [];
+    }
+  };
+
+  const getFormTitle = () => {
+    switch(activeAction) {
+      case 'send': return 'Send Money Internationally';
+      case 'add': return 'Add Funds to Account';
+      case 'balance': return 'Check Account Balance';
+      case 'history': return 'View Transaction History';
+      default: return '';
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="glass-panel p-6 space-y-4 border border-white/5">
         <div>
           <p className="text-xs uppercase tracking-wide text-white/40">Customer Portal</p>
-          <h2 className="text-3xl font-bold mt-1">International Banking Services</h2>
+          <h2 className="text-3xl font-bold mt-1">International Banking</h2>
           <p className="text-sm text-white/60 mt-2">
-            Access your accounts, transfer funds internationally, and manage your transactions securely.
+            Simple and secure way to manage your international transactions
           </p>
         </div>
       </div>
@@ -298,7 +379,7 @@ const ParticipantDashboard = () => {
         />
         <StatCard 
           icon="⏳" 
-          label="Pending Requests" 
+          label="Pending" 
           value={stats.pendingRequests.toLocaleString()} 
           subtext="Awaiting approval" 
         />
@@ -314,85 +395,74 @@ const ParticipantDashboard = () => {
         <div className="glass-panel border-2 border-accent/30 p-6 space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🔑</span>
-            <p className="text-sm uppercase tracking-wide text-accent font-semibold">Your Account Information</p>
+            <p className="text-sm uppercase tracking-wide text-accent font-semibold">Your Account Details</p>
           </div>
-          <p className="text-sm text-white/70">Use these credentials when performing transactions.</p>
+          <p className="text-sm text-white/70">Keep these credentials secure. You'll need them for transactions.</p>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="bg-white/5 rounded-xl p-4">
               <p className="text-xs uppercase text-white/40 mb-1">Username</p>
               <p className="font-mono text-sm text-white break-all">{latestRegistration.username}</p>
             </div>
             <div className="bg-white/5 rounded-xl p-4">
-              <p className="text-xs uppercase text-white/40 mb-1">Account Type</p>
-              <p className="text-sm text-white">{latestRegistration.role === 'customer' ? 'Customer Account' : latestRegistration.role}</p>
+              <p className="text-xs uppercase text-white/40 mb-1">Account Number</p>
+              <p className="font-mono text-sm break-all text-accent">{latestRegistration.network_address || '—'}</p>
             </div>
-          </div>
-          <div className="bg-white/5 rounded-xl p-4">
-            <p className="text-xs uppercase text-white/40 mb-1">Account ID</p>
-            <p className="font-mono text-sm break-all text-accent">{latestRegistration.network_address || '—'}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-4">
             <p className="text-xs uppercase text-white/40 mb-1">Security Code</p>
             <p className="font-mono text-sm break-all text-accentSecondary">{latestRegistration.password_hash || '—'}</p>
           </div>
-          <p className="text-xs text-white/40">
-            Last updated {latestRegistration.timestamp ? `• ${new Date(latestRegistration.timestamp).toLocaleString()}` : ''}
-          </p>
         </div>
       )}
 
-      <div>
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-2">Quick Actions</h3>
-          <p className="text-sm text-white/60">Common operations for managing your international transactions</p>
+      {!activeAction ? (
+        <div>
+          <div className="mb-6">
+            <h3 className="text-2xl font-semibold mb-2">What would you like to do?</h3>
+            <p className="text-sm text-white/60">Choose an action to get started</p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <ActionCard
+              icon="🌍"
+              title="Send Money"
+              description="Transfer funds internationally to another account"
+              onClick={() => setActiveAction('send')}
+            />
+            <ActionCard
+              icon="💵"
+              title="Add Funds"
+              description="Request to add money to your account"
+              onClick={() => setActiveAction('add')}
+            />
+            <ActionCard
+              icon="💼"
+              title="Check Balance"
+              description="View your current account balance"
+              onClick={() => setActiveAction('balance')}
+            />
+            <ActionCard
+              icon="📊"
+              title="Transaction History"
+              description="View all your past transactions"
+              onClick={() => setActiveAction('history')}
+            />
+          </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <QuickActionCard
-            icon="🔄"
-            title="Transfer Funds"
-            description="Send money internationally"
-            onClick={() => {
-              const transferFunc = PARTICIPANT_FUNCTIONS.find(f => f.key === 'createTransferRequest');
-              setSelectedFunction(transferFunc);
-              document.getElementById('operations-section')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          />
-          <QuickActionCard
-            icon="💵"
-            title="Request Funds"
-            description="Add funds to your account"
-            onClick={() => {
-              const requestFunc = PARTICIPANT_FUNCTIONS.find(f => f.key === 'customerRequestMint');
-              setSelectedFunction(requestFunc);
-              document.getElementById('operations-section')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          />
-          <QuickActionCard
-            icon="📊"
-            title="View History"
-            description="Check transaction history"
-            onClick={() => {
-              const historyFunc = PARTICIPANT_FUNCTIONS.find(f => f.key === 'listParticipantTransferHistory');
-              setSelectedFunction(historyFunc);
-              document.getElementById('operations-section')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          />
-        </div>
-      </div>
-
-      <div id="operations-section">
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-2">All Services</h3>
-          <p className="text-sm text-white/60">Complete list of available banking operations</p>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          {PARTICIPANT_FUNCTIONS.map(fn => (
-            <div key={fn.key} className={selectedFunction?.key === fn.key ? 'ring-2 ring-accent rounded-2xl' : ''}>
-              <FunctionCard {...fn} />
-            </div>
-          ))}
-        </div>
-      </div>
+      ) : (
+        <SimpleForm
+          title={getFormTitle()}
+          fields={getFormFields()}
+          onSubmit={handleAction}
+          onCancel={() => {
+            setActiveAction(null);
+            setResponse(null);
+            setError('');
+          }}
+          isLoading={isLoading}
+          response={response}
+          error={error}
+        />
+      )}
     </div>
   );
 };
