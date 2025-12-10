@@ -142,11 +142,13 @@ const ParticipantDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState(null);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState({
-    balance: 0,
-    pendingRequests: 0,
-    completedToday: 0
-  });
+const [stats, setStats] = useState({
+  balance: 0,
+  balanceDisplay: '',
+  currencySymbol: '',
+  pendingRequests: 0,
+  completedToday: 0
+});
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -189,15 +191,46 @@ const ParticipantDashboard = () => {
         ]);
         
         let balance = 0;
-        if (allTokens && allTokens.length > 0 && registration.password_hash) {
-          const walletData = await safeGet('/customer/wallet', {
-            params: {
-              networkAddress: registration.network_address,
-              tokenID: allTokens[0].id || allTokens[0].tokenID,
-              passwordHash: registration.password_hash
+        let balanceDisplay = '';
+        let currencySymbol = '';
+        if (allTokens && allTokens.length > 0) {
+          try {
+            const { data: walletResponse } = await client.get('/customer/wallet', {
+              params: {
+                networkAddress: registration.network_address,
+                tokenID: allTokens[0].id || allTokens[0].tokenID,
+                userId: registration.username
+              }
+            });
+            let payload = walletResponse?.wallet ?? walletResponse?.result ?? walletResponse;
+            if (typeof payload === 'string') {
+              try {
+                payload = JSON.parse(payload);
+              } catch (parseError) {
+                console.warn('Unable to parse wallet payload:', parseError.message);
+              }
             }
-          });
-          balance = walletData?.balance || walletData?.amount || 0;
+            const walletDetails = payload?.wallet_details || payload || {};
+            balance =
+              walletDetails.wallet_balance ??
+              walletDetails.walletBalance ??
+              walletDetails.balance ??
+              0;
+            balanceDisplay =
+              walletDetails.wallet_balance_display ||
+              walletDetails.walletBalanceDisplay ||
+              walletDetails.balance_display ||
+              walletDetails.balanceDisplay ||
+              '';
+            currencySymbol =
+              walletDetails.currency_symbol ||
+              walletDetails.currencySymbol ||
+              payload?.currency_symbol ||
+              payload?.currencySymbol ||
+              '';
+          } catch (walletErr) {
+            console.warn('Unable to fetch wallet snapshot:', walletErr?.message || walletErr);
+          }
         }
         
         const today = new Date().toDateString();
@@ -216,6 +249,8 @@ const ParticipantDashboard = () => {
         
         setStats({
           balance,
+          balanceDisplay,
+          currencySymbol,
           pendingRequests: pendingCount,
           completedToday
         });
@@ -237,6 +272,18 @@ const ParticipantDashboard = () => {
       const cleanedValues = cleanPayload(values);
 
       switch(activeAction) {
+        case 'register':
+          requestConfig = {
+            method: 'POST',
+            url: '/bank/register-customer',
+            data: cleanPayload({
+              networkAddress: cleanedValues.accountNumber,
+              name: cleanedValues.fullName,
+              tokenID: cleanedValues.currency
+            })
+          };
+          break;
+
         case 'send':
           requestConfig = {
             method: 'POST',
@@ -260,7 +307,6 @@ const ParticipantDashboard = () => {
               networkAddress: cleanedValues.accountNumber,
               tokenID: cleanedValues.currency,
               amount: cleanedValues.amount,
-              passwordHash: cleanedValues.securityCode,
               reason: cleanedValues.reason
             })
           };
@@ -272,8 +318,7 @@ const ParticipantDashboard = () => {
             url: '/customer/wallet',
             params: cleanPayload({
               networkAddress: cleanedValues.accountNumber,
-              tokenID: cleanedValues.currency,
-              passwordHash: cleanedValues.securityCode
+              tokenID: cleanedValues.currency
             })
           };
           break;
@@ -283,8 +328,7 @@ const ParticipantDashboard = () => {
             method: 'GET',
             url: '/participant/transfer-history',
             params: cleanPayload({
-              networkAddress: cleanedValues.accountNumber,
-              passwordHash: cleanedValues.securityCode
+              networkAddress: cleanedValues.accountNumber
             })
           };
           break;
@@ -311,6 +355,13 @@ const ParticipantDashboard = () => {
     const registration = latestRegistration || {};
     
     switch(activeAction) {
+      case 'register':
+        return [
+          { name: 'accountNumber', label: 'Your Account ID', required: true, placeholder: 'Your account identifier', defaultValue: registration.network_address || '' },
+          { name: 'fullName', label: 'Full Name', required: true, placeholder: 'Enter your full name' },
+          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' }
+        ];
+
       case 'send':
         return [
           { name: 'senderAccount', label: 'Your Customer ID', required: true, placeholder: 'Your customer identifier', defaultValue: registration.network_address || '' },
@@ -326,21 +377,18 @@ const ParticipantDashboard = () => {
           { name: 'accountNumber', label: 'Your Account Number', required: true, placeholder: 'Your account number', defaultValue: registration.network_address || '' },
           { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' },
           { name: 'amount', label: 'Amount', required: true, type: 'number', placeholder: 'Amount to add' },
-          { name: 'securityCode', label: 'Security Code', required: true, placeholder: 'Your security code', defaultValue: registration.password_hash || '' },
           { name: 'reason', label: 'Purpose (Optional)', placeholder: 'Reason for adding funds' }
         ];
       
       case 'balance':
         return [
           { name: 'accountNumber', label: 'Account Number', required: true, placeholder: 'Your account number', defaultValue: registration.network_address || '' },
-          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' },
-          { name: 'securityCode', label: 'Security Code', required: true, placeholder: 'Your security code', defaultValue: registration.password_hash || '' }
+          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' }
         ];
       
       case 'history':
         return [
-          { name: 'accountNumber', label: 'Account Number', placeholder: 'Your account number (optional)', defaultValue: registration.network_address || '' },
-          { name: 'securityCode', label: 'Security Code', placeholder: 'Your security code (optional)', defaultValue: registration.password_hash || '' }
+          { name: 'accountNumber', label: 'Account Number', placeholder: 'Your account number (optional)', defaultValue: registration.network_address || '' }
         ];
       
       default:
@@ -350,6 +398,7 @@ const ParticipantDashboard = () => {
 
   const getFormTitle = () => {
     switch(activeAction) {
+      case 'register': return 'Register for Currency';
       case 'send': return 'Send Money Internationally';
       case 'add': return 'Add Funds to Account';
       case 'balance': return 'Check Account Balance';
@@ -374,7 +423,12 @@ const ParticipantDashboard = () => {
         <StatCard 
           icon="💼" 
           label="Account Balance" 
-          value={stats.balance > 0 ? `$${stats.balance.toLocaleString()}` : '—'} 
+          value={
+            stats.balanceDisplay ||
+            (stats.balance > 0
+              ? `${stats.currencySymbol || '$'}${stats.balance.toLocaleString()}`
+              : '—')
+          } 
           subtext="Available funds" 
         />
         <StatCard 
@@ -408,10 +462,6 @@ const ParticipantDashboard = () => {
               <p className="font-mono text-sm break-all text-accent">{latestRegistration.network_address || '—'}</p>
             </div>
           </div>
-          <div className="bg-white/5 rounded-xl p-4">
-            <p className="text-xs uppercase text-white/40 mb-1">Security Code</p>
-            <p className="font-mono text-sm break-all text-accentSecondary">{latestRegistration.password_hash || '—'}</p>
-          </div>
         </div>
       )}
 
@@ -422,6 +472,12 @@ const ParticipantDashboard = () => {
             <p className="text-sm text-white/60">Choose an action to get started</p>
           </div>
           <div className="grid gap-6 md:grid-cols-2">
+            <ActionCard
+              icon="✅"
+              title="Register for Currency"
+              description="Register your account to access a specific currency"
+              onClick={() => setActiveAction('register')}
+            />
             <ActionCard
               icon="🌍"
               title="Send Money"
