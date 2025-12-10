@@ -375,6 +375,13 @@ const ParticipantDashboard = () => {
           };
           break;
 
+        case 'viewTokens':
+          requestConfig = {
+            method: 'GET',
+            url: '/bank/view-all-tokens'
+          };
+          break;
+
         default:
           throw new Error('Unknown action');
       }
@@ -448,6 +455,9 @@ const ParticipantDashboard = () => {
           { name: 'accountNumber', label: 'Account Number', placeholder: 'Your account number (optional)', defaultValue: registration.network_address || '' }
         ];
       
+      case 'viewTokens':
+        return [];
+      
       default:
         return [];
     }
@@ -460,6 +470,7 @@ const ParticipantDashboard = () => {
       case 'add': return 'Add Funds to Account';
       case 'balance': return 'Check Account Balance';
       case 'history': return 'View Transaction History';
+      case 'viewTokens': return 'Available Currencies';
       default: return '';
     }
   };
@@ -558,6 +569,12 @@ const ParticipantDashboard = () => {
               title="Transaction History"
               description="View all your past transactions"
               onClick={() => setActiveAction('history')}
+            />
+            <ActionCard
+              icon="💱"
+              title="View Available Currencies"
+              description="Browse all available currencies you can register for"
+              onClick={() => setActiveAction('viewTokens')}
             />
           </div>
         </div>
