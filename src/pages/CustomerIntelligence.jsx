@@ -315,14 +315,18 @@ const ParticipantDashboard = () => {
 
       switch(activeAction) {
         case 'register':
+          // Validate required fields
+          if (!cleanedValues.accountNumber || !cleanedValues.fullName || !cleanedValues.tokenID) {
+            throw new Error('Please fill in all required fields: Account ID, Full Name, and Currency');
+          }
           requestConfig = {
             method: 'POST',
             url: '/bank/register-customer',
-            data: cleanPayload({
+            data: {
               networkAddress: cleanedValues.accountNumber,
               name: cleanedValues.fullName,
               tokenID: cleanedValues.tokenID
-            })
+            }
           };
           break;
 
