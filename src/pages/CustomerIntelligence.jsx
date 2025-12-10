@@ -442,18 +442,28 @@ const ParticipantDashboard = () => {
             }))
           : [];
         
+        // If tokens are available, use dropdown; otherwise use text input
+        const currencyField = availableTokens.length > 0
+          ? { 
+              name: 'tokenID', 
+              label: 'Select Currency', 
+              type: 'select',
+              required: true, 
+              placeholder: 'Choose a currency',
+              options: tokenOptions
+            }
+          : {
+              name: 'tokenID',
+              label: 'Token ID',
+              required: true,
+              placeholder: 'Enter token ID (e.g., token_1234...)',
+              helper: 'No currencies loaded from blockchain. Enter the token ID directly.'
+            };
+        
         return [
           { name: 'accountNumber', label: 'Your Account ID', required: true, placeholder: 'Your account identifier', defaultValue: registration.network_address || '' },
           { name: 'fullName', label: 'Full Name', required: true, placeholder: 'Enter your full name' },
-          { 
-            name: 'tokenID', 
-            label: 'Select Currency', 
-            type: 'select',
-            required: true, 
-            placeholder: availableTokens.length === 0 ? 'No currencies available' : 'Choose a currency',
-            options: tokenOptions,
-            helper: availableTokens.length === 0 ? 'Please wait while currencies are being loaded...' : undefined
-          }
+          currencyField
         ];
 
       case 'send':
