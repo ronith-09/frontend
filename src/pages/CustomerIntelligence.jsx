@@ -400,8 +400,8 @@ const ParticipantDashboard = () => {
       case 'register':
         const tokenOptions = availableTokens.length > 0 
           ? availableTokens.map(token => ({
-              value: token.id || token.tokenID || token.token_id || '',
-              label: `${token.currency || token.name || 'Unknown'} (${token.id || token.tokenID || token.token_id || ''})`
+              value: token.token_id || token.tokenID || token.id || '',
+              label: `${token.currency || token.name || 'Unknown'} (${token.token_id || token.tokenID || token.id || ''})`
             }))
           : [];
         
