@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FunctionCard } from '../components';
 import { safeGet } from '../services/apiClient';
+import client from '../services/apiClient';
 
 const cleanPayload = payload =>
   Object.entries(payload).reduce((acc, [key, value]) => {
@@ -27,19 +28,12 @@ const LANES = [
         fields: [
           { name: 'userId', label: 'Customer Username', placeholder: 'Enter username (e.g., alice)', required: true },
           { name: 'password', label: 'Password', placeholder: 'Create password (optional)', type: 'password' },
-          {
-            name: 'passwordHash',
-            label: 'Security Code',
-            placeholder: 'Pre-generated security code (if available)',
-            helper: 'If provided, password will be ignored'
-          },
           { name: 'country', label: 'Country Code', defaultValue: 'US', placeholder: 'e.g., US, UK, CA' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
             userId: values.userId,
             password: values.password,
-            passwordHash: values.passwordHash,
             country: values.country
           })
         })
@@ -53,6 +47,25 @@ const LANES = [
         fields: [{ name: 'networkAddress', label: 'Account Number', required: true, placeholder: 'Enter account number' }],
         buildRequest: values => ({
           params: cleanPayload({ networkAddress: values.networkAddress })
+        })
+      },
+      {
+        key: 'registerBankCustomer',
+        title: 'Register Customer to Currency',
+        description: 'Register an approved customer to access a specific currency token.',
+        method: 'POST',
+        endpoint: '/bank/register-customer',
+        fields: [
+          { name: 'networkAddress', label: 'Customer Account Number', required: true, placeholder: 'Enter customer account number' },
+          { name: 'name', label: 'Customer Name', required: true, placeholder: 'Enter customer full name' },
+          { name: 'tokenID', label: 'Currency Token ID', required: true, placeholder: 'Enter currency token ID (e.g., USD, EUR)' }
+        ],
+        buildRequest: values => ({
+          data: cleanPayload({
+            networkAddress: values.networkAddress,
+            name: values.name,
+            tokenID: values.tokenID
+          })
         })
       }
     ]
@@ -75,13 +88,8 @@ const LANES = [
           { name: 'name', label: 'Institution Name', required: true, placeholder: 'Your institution name' },
           { name: 'networkAddress', label: 'Institution Account Number', placeholder: 'Your account number' },
           { name: 'password', label: 'Password', type: 'password', placeholder: 'Your password' },
-          {
-            name: 'passwordHash',
-            label: 'Security Code',
-            placeholder: 'Pre-generated security code',
-            helper: 'Use this instead of password if available'
-          },
-          { name: 'country', label: 'Country Code', defaultValue: 'US', placeholder: 'e.g., US, UK, CA' }
+          { name: 'country', label: 'Country Code', defaultValue: 'US', placeholder: 'e.g., US, UK, CA' },
+          { name: 'currency', label: 'Currency Code', required: true, placeholder: 'e.g., USD, EUR, GBP' }
         ],
         buildRequest: values => ({
           data: cleanPayload({
@@ -89,8 +97,8 @@ const LANES = [
             name: values.name,
             networkAddress: values.networkAddress,
             password: values.password,
-            passwordHash: values.passwordHash,
-            country: values.country
+            country: values.country,
+            currency: values.currency
           })
         })
       },
@@ -152,15 +160,13 @@ const LANES = [
         fields: [
           { name: 'userId', label: 'Bank User ID', required: true, placeholder: 'User ID' },
           { name: 'networkAddress', label: 'Account Number', required: true, placeholder: 'Account number' },
-          { name: 'password', label: 'Password', type: 'password', placeholder: 'Password (optional)' },
-          { name: 'passwordHash', label: 'Security Code', placeholder: 'Security code (preferred)' }
+          { name: 'password', label: 'Password', type: 'password', placeholder: 'Password (optional)' }
         ],
         buildRequest: values => ({
           params: cleanPayload({
             userId: values.userId,
             networkAddress: values.networkAddress,
-            password: values.password,
-            passwordHash: values.passwordHash
+            password: values.password
           })
         })
       }
@@ -620,6 +626,7 @@ const BankDashboard = () => {
     activeCurrencies: 0,
     transactions: 0
   });
+  const [walletSnapshot, setWalletSnapshot] = useState({ loading: false, data: null, error: '' });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -696,6 +703,45 @@ const BankDashboard = () => {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    if (!latestRegistration?.network_address || !latestRegistration?.username) {
+      setWalletSnapshot(prev => ({ ...prev, data: null }));
+      return;
+    }
+
+    let cancelled = false;
+    const fetchWalletSnapshot = async () => {
+      setWalletSnapshot(prev => ({ ...prev, loading: true, error: '' }));
+      try {
+        const { data } = await client.get('/bank/wallet', {
+          params: {
+            userId: latestRegistration.username,
+            networkAddress: latestRegistration.network_address
+          }
+        });
+        if (!cancelled) {
+          setWalletSnapshot({ loading: false, data, error: '' });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const detail = error?.response?.data?.detail || error?.message || 'Unable to load wallet snapshot';
+          setWalletSnapshot({ loading: false, data: null, error: detail });
+        }
+      }
+    };
+
+    fetchWalletSnapshot();
+    return () => {
+      cancelled = true;
+    };
+  }, [latestRegistration]);
+
+  const foreignCurrencies = Array.isArray(walletSnapshot.data?.foreignCurrencies)
+    ? walletSnapshot.data.foreignCurrencies
+    : Array.isArray(walletSnapshot.data?.foreign_currencies)
+      ? walletSnapshot.data.foreign_currencies
+      : [];
+
   const currentLane = LANES.find(lane => lane.key === activeLane) || LANES[0];
 
   return (
@@ -717,6 +763,66 @@ const BankDashboard = () => {
         <StatCard icon="📊" label="Transactions Today" value={stats.transactions.toLocaleString()} subtext="Completed transfers" />
       </div>
 
+      {walletSnapshot.loading && (
+        <div className="glass-panel p-4 border border-white/5 text-sm text-white/70">Loading wallet snapshot…</div>
+      )}
+      {walletSnapshot.error && (
+        <div className="glass-panel p-4 border border-red-500/30 bg-red-500/5 text-sm text-red-200">
+          {walletSnapshot.error}
+        </div>
+      )}
+      {walletSnapshot.data && !walletSnapshot.loading && (
+        <div className="glass-panel p-6 border border-white/5 grid gap-4 md:grid-cols-3">
+          <div>
+            <p className="text-xs uppercase text-white/50">Primary Currency</p>
+            <p className="text-xl font-semibold">{walletSnapshot.data.currency || 'Pending assignment'}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-white/50">Minted Supply</p>
+            <p className="text-xl font-semibold">
+              {walletSnapshot.data.mintedCoinsDisplay ||
+                walletSnapshot.data.minted_coins_display ||
+                walletSnapshot.data.mintedCoins ||
+                0}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-white/50">Wallet Balance</p>
+            <p className="text-xl font-semibold">
+              {walletSnapshot.data.walletBalanceDisplay ||
+                walletSnapshot.data.wallet_balance_display ||
+                (walletSnapshot.data.currencySymbol || walletSnapshot.data.currency_symbol || '$') +
+                  (walletSnapshot.data.walletBalance ||
+                    walletSnapshot.data.wallet_balance ||
+                    0).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
+      {walletSnapshot.data && foreignCurrencies.length > 0 && (
+        <div className="glass-panel p-6 border border-accent/20 space-y-4">
+          <div>
+            <p className="text-xs uppercase text-white/50">Foreign Currency Holdings</p>
+            <p className="text-sm text-white/60">
+              Balances received from other tokens are tracked separately from your domestic currency.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {foreignCurrencies.map((fx, idx) => (
+              <div key={`${fx.currency || 'foreign'}-${idx}`} className="bg-white/5 rounded-xl p-4 space-y-2">
+                <div className="text-xs uppercase text-white/50">Currency</div>
+                <div className="text-lg font-semibold text-white">{fx.currency || 'Foreign'}</div>
+                <div className="text-xs uppercase text-white/50">Balance</div>
+                <div className="text-lg font-semibold text-white">
+                  {fx.display ||
+                    `${fx.currency_symbol || ''}${(fx.amount || 0).toLocaleString()}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {latestRegistration?.wallet_created && (
         <div className="glass-panel border-2 border-accent/30 p-6 space-y-3">
           <div className="flex items-center gap-2">
@@ -737,10 +843,6 @@ const BankDashboard = () => {
           <div className="bg-white/5 rounded-xl p-4">
             <p className="text-xs uppercase text-white/40 mb-1">Account Number</p>
             <p className="font-mono text-sm break-all text-accent">{latestRegistration.network_address || '—'}</p>
-          </div>
-          <div className="bg-white/5 rounded-xl p-4">
-            <p className="text-xs uppercase text-white/40 mb-1">Security Code</p>
-            <p className="font-mono text-sm break-all text-accentSecondary">{latestRegistration.password_hash || '—'}</p>
           </div>
         </div>
       )}
