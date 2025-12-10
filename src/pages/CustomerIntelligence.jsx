@@ -78,15 +78,32 @@ const SimpleForm = ({ title, fields, onSubmit, onCancel, isLoading, response, er
               {field.label}
               {field.required && <span className="text-red-400 ml-1">*</span>}
             </label>
-            <input
-              type={field.type || 'text'}
-              value={values[field.name]}
-              onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
-              placeholder={field.placeholder}
-              required={field.required}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 transition"
-              data-testid={`input-${field.name}`}
-            />
+            {field.type === 'select' ? (
+              <select
+                value={values[field.name]}
+                onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
+                required={field.required}
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 transition"
+                data-testid={`select-${field.name}`}
+              >
+                <option value="">{field.placeholder || 'Select...'}</option>
+                {field.options?.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={field.type || 'text'}
+                value={values[field.name]}
+                onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
+                placeholder={field.placeholder}
+                required={field.required}
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 transition"
+                data-testid={`input-${field.name}`}
+              />
+            )}
             {field.helper && <p className="text-xs text-white/50 mt-1.5">{field.helper}</p>}
           </div>
         ))}
@@ -142,13 +159,14 @@ const ParticipantDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState(null);
   const [error, setError] = useState('');
-const [stats, setStats] = useState({
-  balance: 0,
-  balanceDisplay: '',
-  currencySymbol: '',
-  pendingRequests: 0,
-  completedToday: 0
-});
+  const [availableTokens, setAvailableTokens] = useState([]);
+  const [stats, setStats] = useState({
+    balance: 0,
+    balanceDisplay: '',
+    currencySymbol: '',
+    pendingRequests: 0,
+    completedToday: 0
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -189,6 +207,11 @@ const [stats, setStats] = useState({
           }),
           safeGet('/bank/view-all-tokens', [])
         ]);
+        
+        // Store available tokens in state
+        if (Array.isArray(allTokens)) {
+          setAvailableTokens(allTokens);
+        }
         
         let balance = 0;
         let balanceDisplay = '';
@@ -279,7 +302,7 @@ const [stats, setStats] = useState({
             data: cleanPayload({
               networkAddress: cleanedValues.accountNumber,
               name: cleanedValues.fullName,
-              tokenID: cleanedValues.currency
+              tokenID: cleanedValues.tokenID
             })
           };
           break;
@@ -359,7 +382,17 @@ const [stats, setStats] = useState({
         return [
           { name: 'accountNumber', label: 'Your Account ID', required: true, placeholder: 'Your account identifier', defaultValue: registration.network_address || '' },
           { name: 'fullName', label: 'Full Name', required: true, placeholder: 'Enter your full name' },
-          { name: 'currency', label: 'Currency', required: true, placeholder: 'e.g., USD, EUR, GBP' }
+          { 
+            name: 'tokenID', 
+            label: 'Select Currency', 
+            type: 'select',
+            required: true, 
+            placeholder: 'Choose a currency',
+            options: availableTokens.map(token => ({
+              value: token.id || token.tokenID || token.token_id || '',
+              label: `${token.currency || token.name || 'Unknown'} (${token.id || token.tokenID || token.token_id || ''})`
+            }))
+          }
         ];
 
       case 'send':
