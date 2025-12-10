@@ -194,15 +194,41 @@ const ParticipantDashboard = () => {
     const fetchTokens = async () => {
       try {
         console.log('Fetching available tokens...');
-        const tokens = await safeGet('/bank/view-all-tokens', []);
-        console.log('Available tokens:', tokens);
-        if (Array.isArray(tokens)) {
+        let tokens = [];
+        
+        // Try bank endpoint first
+        try {
+          const bankTokens = await safeGet('/bank/view-all-tokens', null);
+          if (Array.isArray(bankTokens)) {
+            tokens = bankTokens;
+            console.log('Tokens from /bank/view-all-tokens:', tokens);
+          }
+        } catch (bankError) {
+          console.warn('Bank endpoint failed, trying customer endpoint:', bankError);
+        }
+        
+        // If bank endpoint didn't work, try customer endpoint
+        if (!Array.isArray(tokens) || tokens.length === 0) {
+          const customerResponse = await safeGet('/customer/view-all-tokens', {});
+          if (customerResponse?.tokens && Array.isArray(customerResponse.tokens)) {
+            tokens = customerResponse.tokens;
+            console.log('Tokens from /customer/view-all-tokens:', tokens);
+          } else if (Array.isArray(customerResponse)) {
+            tokens = customerResponse;
+            console.log('Tokens from customer response:', tokens);
+          }
+        }
+        
+        console.log('Final available tokens:', tokens);
+        if (Array.isArray(tokens) && tokens.length > 0) {
           setAvailableTokens(tokens);
         } else {
-          console.warn('Tokens response is not an array:', tokens);
+          console.warn('No tokens available or response is not an array');
+          setAvailableTokens([]);
         }
       } catch (error) {
         console.error('Failed to fetch tokens:', error);
+        setAvailableTokens([]);
       }
     };
 
