@@ -191,6 +191,25 @@ const ParticipantDashboard = () => {
   }, []);
 
   useEffect(() => {
+    const fetchTokens = async () => {
+      try {
+        console.log('Fetching available tokens...');
+        const tokens = await safeGet('/bank/view-all-tokens', []);
+        console.log('Available tokens:', tokens);
+        if (Array.isArray(tokens)) {
+          setAvailableTokens(tokens);
+        } else {
+          console.warn('Tokens response is not an array:', tokens);
+        }
+      } catch (error) {
+        console.error('Failed to fetch tokens:', error);
+      }
+    };
+
+    fetchTokens();
+  }, []);
+
+  useEffect(() => {
     const fetchStats = async () => {
       try {
         const registration = getStoredRegistrationSnapshot();
@@ -379,6 +398,13 @@ const ParticipantDashboard = () => {
     
     switch(activeAction) {
       case 'register':
+        const tokenOptions = availableTokens.length > 0 
+          ? availableTokens.map(token => ({
+              value: token.id || token.tokenID || token.token_id || '',
+              label: `${token.currency || token.name || 'Unknown'} (${token.id || token.tokenID || token.token_id || ''})`
+            }))
+          : [];
+        
         return [
           { name: 'accountNumber', label: 'Your Account ID', required: true, placeholder: 'Your account identifier', defaultValue: registration.network_address || '' },
           { name: 'fullName', label: 'Full Name', required: true, placeholder: 'Enter your full name' },
@@ -387,11 +413,9 @@ const ParticipantDashboard = () => {
             label: 'Select Currency', 
             type: 'select',
             required: true, 
-            placeholder: 'Choose a currency',
-            options: availableTokens.map(token => ({
-              value: token.id || token.tokenID || token.token_id || '',
-              label: `${token.currency || token.name || 'Unknown'} (${token.id || token.tokenID || token.token_id || ''})`
-            }))
+            placeholder: availableTokens.length === 0 ? 'No currencies available' : 'Choose a currency',
+            options: tokenOptions,
+            helper: availableTokens.length === 0 ? 'Please wait while currencies are being loaded...' : undefined
           }
         ];
 
